@@ -5,7 +5,7 @@ const adminStatus = document.querySelector('.admin-status');
 const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
-const adminAccessPassword = 'BEHome2026!';
+const adminAccessPin = '2026';
 
 function valuesFrom(form) { return Object.fromEntries(new FormData(form).entries()); }
 
@@ -105,10 +105,10 @@ document.querySelector('#closeAdmin').addEventListener('click', () => { loginMod
 
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const password = document.querySelector('#adminPassword').value;
+  const pin = document.querySelector('#adminPassword').value;
   const loginStatus = document.querySelector('.login-status');
-  if (password !== adminAccessPassword) {
-    loginStatus.textContent = 'That password does not match. Please try again.';
+  if (pin !== adminAccessPin) {
+    loginStatus.textContent = 'That PIN does not match. Please try again.';
     return;
   }
   loginForm.reset();
