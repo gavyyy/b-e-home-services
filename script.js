@@ -15,6 +15,7 @@ const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
+quoteForm.dataset.openedAt = String(Date.now());
 
 // Always begin a fresh visit at the top instead of restoring a previous scroll position.
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -95,11 +96,17 @@ quoteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const settings = valuesFrom(adminForm);
   const note = quoteForm.querySelector('.form-note');
+  const quote = valuesFrom(quoteForm);
+  const secondsOpen = (Date.now() - Number(quoteForm.dataset.openedAt || 0)) / 1000;
+  const linkCount = (quote.details.match(/https?:\/\//gi) || []).length;
+  if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
+    note.textContent = 'We could not submit that request. Please review the form and try again.';
+    return;
+  }
   if (!settings.quoteEmail) {
     note.textContent = 'The business has not set a quote request email yet.';
     return;
   }
-  const quote = valuesFrom(quoteForm);
   const submitButton = quoteForm.querySelector('button');
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
