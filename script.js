@@ -1,3 +1,12 @@
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { doc, getDoc, getFirestore, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+
+const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
+const auth = getAuth(firebaseApp);
+const database = getFirestore(firebaseApp);
+const settingsDocument = doc(database, 'siteSettings', 'main');
+const ownerEmail = 'gavindun2025@gmail.com';
 const storageKey = 'be-home-services-content';
 const adminForm = document.querySelector('#adminForm');
 const quoteForm = document.querySelector('#quoteForm');
@@ -40,8 +49,7 @@ function updatePage(values) {
   });
 }
 
-function restoreSavedValues() {
-  const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+function applySavedValues(saved) {
   if (!saved) return;
   Object.entries(saved).forEach(([name, value]) => {
     const field = adminForm.elements.namedItem(name);
@@ -53,12 +61,29 @@ function restoreSavedValues() {
   updatePage(saved);
 }
 
-adminForm.addEventListener('submit', (event) => {
+async function restoreSavedValues() {
+  try {
+    const shared = await getDoc(settingsDocument);
+    if (shared.exists()) {
+      applySavedValues(shared.data());
+      return;
+    }
+  } catch (error) { /* Local backup is used while offline. */ }
+  applySavedValues(JSON.parse(localStorage.getItem(storageKey) || 'null'));
+}
+
+adminForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const values = valuesFrom(adminForm);
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
-  adminStatus.textContent = 'Saved — your page and quote inbox are updated.';
+  try {
+    if (!auth.currentUser || auth.currentUser.email !== ownerEmail) throw new Error('Owner sign-in required');
+    await setDoc(settingsDocument, values);
+    adminStatus.textContent = 'Saved — changes are now live for every visitor.';
+  } catch (error) {
+    adminStatus.textContent = 'Saved on this device. Sign in with the owner Google account to publish everywhere.';
+  }
 });
 
 document.querySelector('#resetChanges').addEventListener('click', () => {
@@ -120,12 +145,19 @@ if (new URLSearchParams(window.location.search).get('admin') === 'true') {
 
 document.querySelector('#closeAdmin').addEventListener('click', () => { loginModal.hidden = true; });
 
-loginForm.addEventListener('submit', (event) => {
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const pin = document.querySelector('#adminPassword').value;
   const loginStatus = document.querySelector('.login-status');
   if (pin !== adminAccessPin) {
     loginStatus.textContent = 'That PIN does not match. Please try again.';
+    return;
+  }
+  try {
+    const result = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (result.user.email !== ownerEmail) throw new Error('Wrong account');
+  } catch (error) {
+    loginStatus.textContent = 'Use the owner Google account to unlock shared admin controls.';
     return;
   }
   loginForm.reset();
