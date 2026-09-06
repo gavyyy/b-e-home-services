@@ -95,6 +95,8 @@ function openAdminLogin() {
   document.querySelector('#adminPassword').focus();
 }
 
+document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
+
 if (new URLSearchParams(window.location.search).get('admin') === 'true') {
   openAdminLogin();
 }
