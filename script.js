@@ -7,9 +7,23 @@ const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
 
-function valuesFrom(form) { return Object.fromEntries(new FormData(form).entries()); }
+// Always begin a fresh visit at the top instead of restoring a previous scroll position.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.addEventListener('load', () => {
+  if (!window.location.hash) window.scrollTo(0, 0);
+});
+
+function valuesFrom(form) {
+  const values = Object.fromEntries(new FormData(form).entries());
+  form.querySelectorAll('input[type="checkbox"]').forEach((field) => { values[field.name] = field.checked; });
+  return values;
+}
 
 function updatePage(values) {
+  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showContact: 'contact' };
+  Object.entries(sections).forEach(([setting, id]) => {
+    if (typeof values[setting] === 'boolean') document.querySelector(`#${id}`).hidden = !values[setting];
+  });
   document.querySelectorAll('[data-field]').forEach((element) => {
     const value = values[element.dataset.field];
     if (value) element.textContent = value;
@@ -31,7 +45,10 @@ function restoreSavedValues() {
   if (!saved) return;
   Object.entries(saved).forEach(([name, value]) => {
     const field = adminForm.elements.namedItem(name);
-    if (field) field.value = value;
+    if (field) {
+      if (field.type === 'checkbox') field.checked = value === true;
+      else field.value = value;
+    }
   });
   updatePage(saved);
 }

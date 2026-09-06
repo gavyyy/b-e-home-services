@@ -13,6 +13,7 @@
       .admin-section{display:grid;grid-template-columns:.7fr 1.3fr;gap:70px;padding:90px clamp(24px,8vw,130px);background:#e2ebdf}.admin-section h2{font-size:48px}.admin-intro p:last-child{color:#51685d;max-width:330px}.admin-form{background:#fffdf8;padding:28px;border:1px solid #cbd9c8}.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.admin-grid label{font-size:12px;font-weight:700;color:#314d42}.admin-grid input,.admin-grid textarea{width:100%;margin-top:5px;padding:10px;border:1px solid #cdd8cb;background:#fafbf8;font:14px 'DM Sans',sans-serif;resize:vertical}.admin-grid small{font-weight:500;color:#75857d}.admin-grid .full{grid-column:1 / -1}.admin-actions{display:flex;align-items:center;gap:17px;flex-wrap:wrap;margin-top:23px}.reset-button{border:0;background:transparent;border-bottom:1px solid #779080;padding:4px 0;color:#355948;font:600 13px 'DM Sans',sans-serif;cursor:pointer}.admin-status{margin:0;color:#356746;font-size:13px;font-weight:600}@media(max-width:800px){.admin-section{grid-template-columns:1fr;gap:30px;padding:65px 23px}.admin-section h2{font-size:42px}}@media(max-width:520px){.admin-grid{grid-template-columns:1fr}.admin-grid .full{grid-column:auto}}
       .admin-login-button{border:0;background:transparent;color:var(--forest);font:600 13px 'DM Sans',sans-serif;cursor:pointer}.login-modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:24px;background:#17392db8}.login-card{position:relative;width:min(100%,430px);padding:38px;background:#fffdf8;box-shadow:0 18px 60px #11271f66}.login-card h2{font-size:41px}.login-card>p:not(.eyebrow){color:#5c7067;margin:12px 0 25px}.login-card form{display:grid;gap:16px}.login-card label{font-size:12px;font-weight:700;color:#314d42}.login-card input{display:block;width:100%;margin-top:5px;padding:12px;border:1px solid #cdd8cb;background:#fafbf8;font:15px 'DM Sans',sans-serif}.login-status{min-height:18px;margin:0;color:#b4473e;font-size:13px;font-weight:600}.close-login{position:absolute;right:15px;top:12px;border:0;background:transparent;color:var(--forest);font-size:28px;cursor:pointer}
       .footer-meta{display:flex;align-items:center;gap:15px}.footer-meta p{margin:0}.admin-login-button{border:1px solid #668477;border-radius:2px;background:transparent;padding:6px 9px;color:#d6e2d3;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.admin-login-button:hover{background:#31584a}.admin-section[hidden],.login-modal[hidden]{display:none!important}
+      .admin-panel{margin:0;padding:18px;border:1px solid #cbd9c8;background:#f7faf5}.admin-panel legend{padding:0 6px;font-family:Fraunces,serif;font-size:20px;color:#21483b}.admin-panel>p{margin:0 0 13px;color:#5a7066;font-size:13px}.admin-panel>small{display:block;margin-top:6px;color:#6d7f76;font-size:11px}.toggle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.toggle-grid label{display:flex;align-items:center;gap:8px;font-size:13px!important}.toggle-grid input{width:auto!important;margin:0!important}@media(max-width:520px){.toggle-grid{grid-template-columns:1fr}}
     </style>
   </head>
   <body>
@@ -30,7 +31,7 @@
     </header>
 
     <main id="top">
-      <section class="hero">
+      <section class="hero" id="heroSection">
         <div class="hero-copy">
           <p class="eyebrow">Yard care + home cleaning</p>
           <h1><span data-field="heroTitle">More time for home.</span><br /><em data-field="heroAccent">We’ll handle the work.</em></h1>
@@ -89,7 +90,7 @@
         </div>
       </section>
 
-      <section class="promise">
+      <section class="promise" id="promiseSection">
         <div class="promise-badge">B & E<br /><span>promise</span></div>
         <div><p class="eyebrow">The B & E difference</p><h2>Done right. Done with care.</h2></div>
         <p>We show up ready to work, respect your space, and leave it better than we found it. Great service should feel simple—and be priced fairly.</p>
@@ -119,6 +120,8 @@
       <div class="admin-intro"><p class="eyebrow">Owner tools</p><h2>Admin controls</h2><p>Update the page and choose the inbox that receives quote requests. Changes are saved on this device and browser.</p></div>
       <form class="admin-form" id="adminForm">
         <div class="admin-grid">
+          <fieldset class="admin-panel full"><legend>Page controls</legend><p>Choose which sections visitors can see.</p><div class="toggle-grid"><label><input name="showHero" type="checkbox" checked /> Hero section</label><label><input name="showTrust" type="checkbox" checked /> Trust highlights</label><label><input name="showServices" type="checkbox" checked /> Services</label><label><input name="showPromise" type="checkbox" checked /> B & E promise</label><label><input name="showContact" type="checkbox" checked /> Quote form</label></div></fieldset>
+          <fieldset class="admin-panel full"><legend>Website visits</legend><p>Connect Google Analytics to see real visitor traffic, popular pages, and inquiry activity in the Google Analytics dashboard.</p><label>Google Analytics Measurement ID <input name="analyticsId" placeholder="G-XXXXXXXXXX" /></label><small>After you send me this ID, I can activate live visitor tracking for every visitor.</small></fieldset>
           <label>Business name<input name="businessName" value="Home Services" /></label>
           <label>Service area<input name="location" value="Columbia, South Carolina" /></label>
           <label>Quote request email<input name="quoteEmail" required type="email" value="bandehomeservice26@gmail.com" /></label>
@@ -149,6 +152,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script src="script.js?v=20260906-2"></script>
+    <script src="script.js?v=20260906-3"></script>
   </body>
 </html>
