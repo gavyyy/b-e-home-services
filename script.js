@@ -90,10 +90,14 @@ quoteForm.addEventListener('submit', async (event) => {
 
 restoreSavedValues();
 
-document.querySelector('#openAdmin').addEventListener('click', () => {
+function openAdminLogin() {
   loginModal.hidden = false;
   document.querySelector('#adminPassword').focus();
-});
+}
+
+if (new URLSearchParams(window.location.search).get('admin') === 'true') {
+  openAdminLogin();
+}
 
 document.querySelector('#closeAdmin').addEventListener('click', () => { loginModal.hidden = true; });
 
