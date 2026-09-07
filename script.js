@@ -451,7 +451,26 @@ document.querySelector('#createCustomerAccount').addEventListener('click', async
     document.querySelector('#customerSignOut').hidden = false;
     loadCustomerQuotes();
   } catch (error) {
-    customerPortalStatus.textContent = 'Could not create that account. Try signing in, or use a different password.';
+    if (error.code === 'auth/email-already-in-use') {
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        customerPortalStatus.textContent = 'You already had an account, so we signed you in.';
+        document.querySelector('#customerSignOut').hidden = false;
+        loadCustomerQuotes();
+      } catch (signInError) {
+        customerPortalStatus.textContent = 'An account already exists with that email. Use the correct password and select Sign in.';
+      }
+      return;
+    }
+    if (error.code === 'auth/weak-password') {
+      customerPortalStatus.textContent = 'Please use a password with at least 6 characters.';
+      return;
+    }
+    if (error.code === 'auth/invalid-email') {
+      customerPortalStatus.textContent = 'Please enter a valid email address.';
+      return;
+    }
+    customerPortalStatus.textContent = 'We could not create the account just yet. Please try again in a moment.';
   }
 });
 
