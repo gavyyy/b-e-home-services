@@ -382,8 +382,13 @@ quoteForm.addEventListener('submit', async (event) => {
   const secondsOpen = (Date.now() - Number(quoteForm.dataset.openedAt || 0)) / 1000;
   const linkCount = (quote.details.match(/https?:\/\//gi) || []).length;
   const lastRequest = Number(localStorage.getItem(quoteRateLimitKey) || 0);
+  const attachments = Array.from(quoteForm.elements.namedItem('attachment').files || []);
   if (quoteForm.dataset.acceptingQuotes === 'false') {
     note.textContent = document.querySelector('#quotePauseMessage').textContent;
+    return;
+  }
+  if (attachments.some((file) => !['image/jpeg', 'image/png'].includes(file.type)) || attachments.reduce((total, file) => total + file.size, 0) > 10 * 1024 * 1024) {
+    note.textContent = 'Please attach only JPG or PNG job photos, up to 10 MB total.';
     return;
   }
   if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
