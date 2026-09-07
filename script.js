@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, getRedirectResult, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -38,7 +38,7 @@ function valuesFrom(form) {
 }
 
 function updatePage(values) {
-  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact', showWorkerLink: 'workerNavLink' };
+  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact' };
   Object.entries(sections).forEach(([setting, id]) => {
     if (typeof values[setting] === 'boolean') document.querySelector(`#${id}`).hidden = !values[setting];
   });
@@ -620,6 +620,13 @@ async function finishOwnerGoogleSignIn() {
     document.querySelector('.login-status').textContent = 'Google sign-in did not finish. Please try again.';
   }
 }
+
+onAuthStateChanged(auth, (user) => {
+  if (user?.email === ownerEmail && sessionStorage.getItem(ownerSignInPendingKey) === 'true') {
+    sessionStorage.removeItem(ownerSignInPendingKey);
+    unlockAdminControls();
+  }
+});
 
 document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
 
