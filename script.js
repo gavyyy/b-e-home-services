@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -15,7 +15,6 @@ const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
-const ownerSignInPendingKey = 'be-owner-sign-in-pending';
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
@@ -198,7 +197,6 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 function lockAdmin() {
   clearTimeout(adminLockTimer);
   adminSection.hidden = true;
-  localStorage.removeItem(ownerSignInPendingKey);
   if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
 }
@@ -603,32 +601,6 @@ function unlockAdminControls() {
   adminSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-async function finishOwnerGoogleSignIn() {
-  try {
-    const result = await getRedirectResult(auth);
-    if (!result) return;
-    localStorage.removeItem(ownerSignInPendingKey);
-    if (result.user.email !== ownerEmail) {
-      await signOut(auth);
-      loginModal.hidden = false;
-      document.querySelector('.login-status').textContent = 'Please sign in with the approved owner Google account.';
-      return;
-    }
-    unlockAdminControls();
-  } catch {
-    localStorage.removeItem(ownerSignInPendingKey);
-    loginModal.hidden = false;
-    document.querySelector('.login-status').textContent = 'Google sign-in did not finish. Please try again.';
-  }
-}
-
-onAuthStateChanged(auth, (user) => {
-  if (user?.email === ownerEmail && localStorage.getItem(ownerSignInPendingKey) === 'true') {
-    localStorage.removeItem(ownerSignInPendingKey);
-    unlockAdminControls();
-  }
-});
-
 document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
 
 if (new URLSearchParams(window.location.search).get('admin') === 'true') {
@@ -650,14 +622,18 @@ loginForm.addEventListener('submit', async (event) => {
     return;
   }
   try {
-    localStorage.setItem(ownerSignInPendingKey, 'true');
     loginStatus.textContent = 'Opening secure Google sign-in…';
-    await signInWithRedirect(auth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await signInWithPopup(auth, provider);
+    if (result.user.email !== ownerEmail) {
+      await signOut(auth);
+      loginStatus.textContent = 'Please sign in with the approved owner Google account.';
+      return;
+    }
+    unlockAdminControls();
   } catch (error) {
-    localStorage.removeItem(ownerSignInPendingKey);
-    loginStatus.textContent = 'Google sign-in could not start. Please try again.';
+    loginStatus.textContent = 'Google sign-in did not finish. Please allow the sign-in window, then try again.';
     return;
   }
 });
-
-finishOwnerGoogleSignIn();
