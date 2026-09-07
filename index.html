@@ -158,7 +158,6 @@
           <label>Service address or neighborhood <small>(optional)</small><input name="serviceArea" type="text" maxlength="160" autocomplete="street-address" placeholder="123 Main St. or Columbia neighborhood" /></label>
           <label>Tell us about the job<textarea required name="details" rows="4" maxlength="1000" minlength="10" placeholder="Example: 3 bedrooms, 2 bathrooms, and a deep clean before move-in."></textarea></label>
           <label class="honeypot" aria-hidden="true">Leave this blank<input name="companyWebsite" tabindex="-1" autocomplete="off" /></label>
-          <div class="quote-security-check"><strong id="humanPrompt">Quick safety check</strong><label>Answer<input required id="humanAnswer" name="humanAnswer" type="number" inputmode="numeric" min="0" max="30" placeholder="Number" /></label></div>
           <label class="form-check"><input required name="contactConsent" type="checkbox" /> <span data-field="consentText">I agree that B & E Home Services may contact me about this quote request.</span></label>
           <button class="button" type="submit"><span data-field="quoteButtonText">Request my free quote</span> <span>→</span></button>
           <p class="booking-note">A requested date is not confirmed until B & E contacts you.</p><p class="form-note" aria-live="polite">No pressure. A detailed request helps us send a more accurate quote.</p><p class="form-note" id="quotePauseMessage" hidden aria-live="polite"></p>
@@ -212,6 +211,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script type="module" src="script.js?v=20260906-15"></script>
+    <script type="module" src="script.js?v=20260906-16"></script>
   </body>
 </html>

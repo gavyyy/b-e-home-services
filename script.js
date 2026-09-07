@@ -27,17 +27,6 @@ window.addEventListener('load', () => {
   if (!window.location.hash) window.scrollTo(0, 0);
 });
 
-function createHumanChallenge() {
-  const first = Math.floor(Math.random() * 7) + 2;
-  const second = Math.floor(Math.random() * 7) + 2;
-  quoteForm.dataset.humanAnswer = String(first + second);
-  document.querySelector('#humanPrompt').textContent = `Quick safety check: what is ${first} + ${second}?`;
-  const answer = quoteForm.elements.namedItem('humanAnswer');
-  answer.value = '';
-}
-
-createHumanChallenge();
-
 function valuesFrom(form) {
   const values = Object.fromEntries(new FormData(form).entries());
   form.querySelectorAll('input[type="checkbox"]').forEach((field) => { values[field.name] = field.checked; });
@@ -395,11 +384,6 @@ quoteForm.addEventListener('submit', async (event) => {
   const lastRequest = Number(localStorage.getItem(quoteRateLimitKey) || 0);
   if (quoteForm.dataset.acceptingQuotes === 'false') {
     note.textContent = document.querySelector('#quotePauseMessage').textContent;
-    return;
-  }
-  if (quote.humanAnswer !== quoteForm.dataset.humanAnswer) {
-    note.textContent = 'Please complete the quick safety check before submitting.';
-    createHumanChallenge();
     return;
   }
   if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
