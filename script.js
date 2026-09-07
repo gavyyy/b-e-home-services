@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { doc, getDoc, getFirestore, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(firebaseApp);
@@ -16,6 +16,8 @@ const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
+const quoteRequests = collection(database, 'quoteRequests');
+const quoteList = document.querySelector('#quoteList');
 let adminLockTimer;
 quoteForm.dataset.openedAt = String(Date.now());
 
@@ -32,7 +34,7 @@ function valuesFrom(form) {
 }
 
 function updatePage(values) {
-  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showContact: 'contact' };
+  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showContact: 'contact' };
   Object.entries(sections).forEach(([setting, id]) => {
     if (typeof values[setting] === 'boolean') document.querySelector(`#${id}`).hidden = !values[setting];
   });
@@ -57,6 +59,49 @@ function updatePage(values) {
       link.textContent = values.phoneNumber;
     });
   }
+  renderGallery(values);
+  renderReviews(values);
+}
+
+function renderGallery(values) {
+  const gallery = document.querySelector('#galleryGrid');
+  const photos = ['One', 'Two', 'Three'].map((number) => ({ image: values[`gallery${number}Image`], caption: values[`gallery${number}Caption`] }));
+  const visiblePhotos = photos.filter(({ image }) => image && /^https:\/\//i.test(image));
+  if (!visiblePhotos.length) {
+    gallery.innerHTML = '<p class="review-empty">Project photos will be shared here soon.</p>';
+    return;
+  }
+  gallery.replaceChildren(...visiblePhotos.map(({ image, caption }) => {
+    const card = document.createElement('article');
+    card.className = 'gallery-card';
+    card.style.backgroundImage = `linear-gradient(140deg, #17392d88, #35594866), url("${image.replace(/"/g, '%22')}")`;
+    const label = document.createElement('span');
+    label.textContent = caption || 'B & E Home Services project';
+    card.append(label);
+    return card;
+  }));
+}
+
+function renderReviews(values) {
+  const reviewGrid = document.querySelector('#reviewGrid');
+  const reviews = ['One', 'Two', 'Three'].map((number) => ({ name: values[`review${number}Name`], location: values[`review${number}Location`], text: values[`review${number}Text`] }));
+  const visibleReviews = reviews.filter(({ text }) => text && text.trim());
+  if (!visibleReviews.length) {
+    reviewGrid.innerHTML = '<p class="review-empty">Customer reviews will be added soon.</p>';
+    return;
+  }
+  reviewGrid.replaceChildren(...visibleReviews.map(({ name, location, text }) => {
+    const card = document.createElement('article');
+    card.className = 'review-card';
+    const quote = document.createElement('p');
+    quote.textContent = `“${text}”`;
+    const person = document.createElement('strong');
+    person.textContent = name || 'B & E customer';
+    const place = document.createElement('cite');
+    place.textContent = location || 'Columbia, SC';
+    card.append(quote, person, place);
+    return card;
+  }));
 }
 
 function applySavedValues(saved) {
@@ -120,6 +165,77 @@ document.querySelector('#lockAdmin').addEventListener('click', lockAdmin);
   });
 });
 
+function quoteReference() {
+  const date = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  const code = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `BE-${date}-${code}`;
+}
+
+async function saveQuoteForOwner(quote, reference) {
+  try {
+    await addDoc(quoteRequests, {
+      reference,
+      customerName: quote.customerName,
+      customerEmail: quote.customerEmail,
+      customerPhone: quote.customerPhone,
+      service: quote.service,
+      propertyType: quote.propertyType,
+      contactMethod: quote.contactMethod,
+      preferredTime: quote.preferredTime || '',
+      bookingDate: quote.bookingDate || '',
+      bookingWindow: quote.bookingWindow || '',
+      serviceArea: quote.serviceArea || '',
+      details: quote.details,
+      status: 'New',
+      createdAt: Date.now()
+    });
+  } catch (error) {
+    // Email delivery still works if private quote storage has not been enabled yet.
+  }
+}
+
+async function loadQuoteInbox() {
+  if (!auth.currentUser || auth.currentUser.email !== ownerEmail) return;
+  quoteList.innerHTML = '<p class="quote-empty">Loading quote requests…</p>';
+  try {
+    const results = await getDocs(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)));
+    if (results.empty) {
+      quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
+      return;
+    }
+    quoteList.replaceChildren(...results.docs.map((quoteDoc) => {
+      const quote = quoteDoc.data();
+      const item = document.createElement('article');
+      item.className = 'quote-item';
+      const title = document.createElement('p');
+      const reference = document.createElement('strong');
+      reference.textContent = quote.reference || 'Quote request';
+      title.append(reference, document.createTextNode(` — ${quote.customerName || 'Customer'}`));
+      const info = document.createElement('p');
+      info.textContent = `${quote.service || 'Service'} · ${quote.customerPhone || ''} · ${quote.customerEmail || ''}`;
+      const details = document.createElement('p');
+      details.textContent = quote.details || '';
+      const status = document.createElement('select');
+      ['New', 'Contacted', 'Scheduled', 'Completed', 'Closed'].forEach((option) => {
+        const choice = document.createElement('option');
+        choice.value = option;
+        choice.textContent = option;
+        choice.selected = option === (quote.status || 'New');
+        status.append(choice);
+      });
+      status.addEventListener('change', async () => {
+        try { await updateDoc(quoteDoc.ref, { status: status.value }); } catch (error) { status.value = quote.status || 'New'; }
+      });
+      item.append(title, info, details, status);
+      return item;
+    }));
+  } catch (error) {
+    quoteList.innerHTML = '<p class="quote-empty">Private quote tracking is not enabled yet.</p>';
+  }
+}
+
+document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbox);
+
 quoteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const settings = valuesFrom(adminForm);
@@ -141,6 +257,7 @@ quoteForm.addEventListener('submit', async (event) => {
     return;
   }
   const submitButton = quoteForm.querySelector('button');
+  const reference = quoteReference();
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
   note.textContent = 'Sending your quote request…';
@@ -157,17 +274,21 @@ quoteForm.addEventListener('submit', async (event) => {
         preferred_contact: quote.contactMethod,
         best_time: quote.preferredTime || 'Not provided',
         service_address_or_neighborhood: quote.serviceArea || 'Not provided',
+        requested_service_date: quote.bookingDate || 'Not requested',
+        requested_arrival_window: quote.bookingWindow || 'No preference',
         message: quote.details || 'Not provided',
-        _subject: `New B & E quote request — ${quote.service}`,
+        quote_reference: reference,
+        _subject: `New B & E quote request ${reference} — ${quote.service}`,
         _replyto: quote.customerEmail,
         _template: 'table'
       })
     });
     if (!response.ok) throw new Error('Quote service could not accept the request.');
+    saveQuoteForOwner(quote, reference);
     localStorage.setItem(quoteRateLimitKey, String(Date.now()));
     quoteForm.reset();
     quoteForm.dataset.openedAt = String(Date.now());
-    note.textContent = 'Thanks! Your quote request has been sent.';
+    note.textContent = `Thanks! Your quote request has been sent. Your reference number is ${reference}.`;
   } catch (error) {
     note.textContent = 'We could not send your request. Please try again shortly.';
   } finally {
@@ -211,5 +332,6 @@ loginForm.addEventListener('submit', async (event) => {
   loginModal.hidden = true;
   adminSection.hidden = false;
   refreshAdminLock();
+  loadQuoteInbox();
   adminSection.scrollIntoView({ behavior: 'smooth' });
 });
