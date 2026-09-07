@@ -22,7 +22,7 @@
       .footer-meta{display:flex;align-items:center;gap:15px}.footer-meta p{margin:0}.admin-login-button{border:1px solid #668477;border-radius:2px;background:transparent;padding:6px 9px;color:#d6e2d3;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.admin-login-button:hover{background:#31584a}.admin-section[hidden],.login-modal[hidden]{display:none!important}
       .admin-panel{margin:0;padding:18px;border:1px solid #cbd9c8;background:#f7faf5}.admin-panel legend{padding:0 6px;font-family:Fraunces,serif;font-size:20px;color:#21483b}.admin-panel>p{margin:0 0 13px;color:#5a7066;font-size:13px}.admin-panel>small{display:block;margin-top:6px;color:#6d7f76;font-size:11px}.toggle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.toggle-grid label{display:flex;align-items:center;gap:8px;font-size:13px!important}.toggle-grid input{width:auto!important;margin:0!important}@media(max-width:520px){.toggle-grid{grid-template-columns:1fr}}
       .contact-phone{margin:18px 0 0;font-weight:700}.contact-phone a{color:#274f40;text-decoration:none}.honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important}
-      .header-phone{color:#355948;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}@media(max-width:760px){.header-phone{display:none}}
+      .header-phone{color:#355948;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}@media(max-width:760px){.header-phone{display:none}}.quote-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quote-form .form-check{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.45}.quote-form .form-check input{width:auto;margin-top:3px}.quote-form select,.quote-form input,.quote-form textarea{max-width:100%}@media(max-width:520px){.quote-form .form-row{grid-template-columns:1fr}}
     </style>
   </head>
   <body>
@@ -112,21 +112,23 @@
           <h2>Ready for a little<br /><em>breathing room?</em></h2>
           <p data-field="contactText">Tell Brandon and Elena what you need. We’ll get back to you with an affordable, no-pressure quote.</p>
           <p class="location">⌖ Proudly serving <span data-field="location">Columbia, South Carolina</span></p>
-          <p class="contact-phone">Call or text: <a href="tel:+12522662160">(252) 266-2160</a></p>
+          <p class="contact-phone">Call or text: <a data-phone-link href="tel:+12522662160">(252) 266-2160</a></p>
         </div>
         <form class="quote-form" id="quoteForm">
-          <label>Your name<input required name="customerName" type="text" placeholder="Jane Smith" /></label>
-          <label>Email address<input required name="customerEmail" type="email" placeholder="jane@email.com" /></label>
-          <label>Phone number <input required name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(252) 266-2160" /></label>
-          <label>How can we help?<select name="service"><option>Lawn & landscaping</option><option>Home cleaning</option><option>Pressure washing</option><option>Something else</option></select></label>
-          <label>Tell us a little more<textarea name="details" rows="3" placeholder="What would you like help with?"></textarea></label>
+          <div class="form-row"><label>Your name<input required name="customerName" type="text" maxlength="80" autocomplete="name" placeholder="Jane Smith" /></label><label>Phone number<input required name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" pattern="[0-9()+.\-\s]{7,}" maxlength="30" placeholder="(252) 266-2160" /></label></div>
+          <label>Email address<input required name="customerEmail" type="email" maxlength="120" autocomplete="email" placeholder="jane@email.com" /></label>
+          <div class="form-row"><label>Service needed<select required name="service"><option value="" selected disabled>Select a service</option><option>Lawn & landscaping</option><option>Hedge trimming</option><option>Tree trimming</option><option>Mulching</option><option>Pressure washing</option><option>Residential cleaning</option><option>Commercial cleaning</option><option>Deep cleaning</option><option>Basic home cleaning</option><option>Something else</option></select></label><label>Property type<select required name="propertyType"><option value="" selected disabled>Select one</option><option>House</option><option>Apartment / condo</option><option>Business</option><option>Rental / move-out</option><option>Other</option></select></label></div>
+          <div class="form-row"><label>Preferred contact<select required name="contactMethod"><option>Call</option><option>Text</option><option>Email</option></select></label><label>Best day / time<input name="preferredTime" type="text" maxlength="80" placeholder="Weekdays after 4 PM" /></label></div>
+          <label>Service address or neighborhood <small>(optional)</small><input name="serviceArea" type="text" maxlength="160" autocomplete="street-address" placeholder="123 Main St. or Columbia neighborhood" /></label>
+          <label>Tell us about the job<textarea required name="details" rows="4" maxlength="1000" minlength="10" placeholder="Example: 3 bedrooms, 2 bathrooms, and a deep clean before move-in."></textarea></label>
           <label class="honeypot" aria-hidden="true">Leave this blank<input name="companyWebsite" tabindex="-1" autocomplete="off" /></label>
+          <label class="form-check"><input required name="contactConsent" type="checkbox" /> I agree that B & E Home Services may contact me about this quote request.</label>
           <button class="button" type="submit">Request my free quote <span>→</span></button>
-          <p class="form-note" aria-live="polite">No pressure. Just helpful service.</p>
+          <p class="form-note" aria-live="polite">No pressure. A detailed request helps us send a more accurate quote.</p>
         </form>
       </section>
     </main>
-    <footer><a class="brand" href="#top"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name" data-field="businessName">Home Services</span></a><p>Reliable help for home and yard in Columbia, SC. Call or text <a href="tel:+12522662160">(252) 266-2160</a>.</p><div class="footer-meta"><p>© 2026 B & E Home Services</p><button class="admin-login-button" type="button" id="openAdmin">Owner login</button></div></footer>
+    <footer><a class="brand" href="#top"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name" data-field="businessName">Home Services</span></a><p data-field="footerText">Reliable help for home and yard in Columbia, SC.</p><div class="footer-meta"><p>© 2026 B & E Home Services</p><button class="admin-login-button" type="button" id="openAdmin">Owner login</button></div></footer>
 
     <section class="admin-section" id="admin" hidden>
       <div class="admin-intro"><p class="eyebrow">Owner tools</p><h2>Admin controls</h2><p>Update the page and choose the inbox that receives quote requests. Saved changes are shared across the live website.</p></div>
@@ -136,6 +138,7 @@
           <fieldset class="admin-panel full"><legend>Website visits</legend><p>Visitor tracking is connected. See visits, popular pages, and visitor activity in the B & E Home Services Google Analytics dashboard.</p><label>Google Analytics Measurement ID <input name="analyticsId" value="G-950R6WG3C3" readonly /></label><small>Tracking begins as visitors use the live website. Data can take up to 24 hours to appear in Google Analytics.</small></fieldset>
           <label>Business name<input name="businessName" value="Home Services" /></label>
           <label>Service area<input name="location" value="Columbia, South Carolina" /></label>
+          <label>Business phone<input name="phoneNumber" type="tel" value="(252) 266-2160" /></label>
           <label>Quote request email<input name="quoteEmail" required type="email" value="bandehomeservice26@gmail.com" /></label>
           <label>Hero headline<input name="heroTitle" value="More time for home." /></label>
           <label>Hero highlight<input name="heroAccent" value="We’ll handle the work." /></label>
@@ -151,8 +154,9 @@ Deep cleaning
 Basic home cleaning
 And more</textarea></label>
           <label class="full">Contact section message<textarea name="contactText" rows="3">Tell Brandon and Elena what you need. We’ll get back to you with an affordable, no-pressure quote.</textarea></label>
+          <label class="full">Footer message<textarea name="footerText" rows="2">Reliable help for home and yard in Columbia, SC.</textarea></label>
         </div>
-        <div class="admin-actions"><button class="button" type="submit">Save page changes <span>✓</span></button><button class="reset-button" type="button" id="resetChanges">Restore original content</button><p class="admin-status" aria-live="polite"></p></div>
+        <div class="admin-actions"><button class="button" type="submit">Save page changes <span>✓</span></button><button class="reset-button" type="button" id="lockAdmin">Lock admin</button><button class="reset-button" type="button" id="resetChanges">Clear this browser backup</button><p class="admin-status" aria-live="polite"></p></div>
       </form>
     </section>
     <div class="login-modal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
@@ -164,6 +168,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script type="module" src="script.js?v=20260906-4"></script>
+    <script type="module" src="script.js?v=20260906-5"></script>
   </body>
 </html>

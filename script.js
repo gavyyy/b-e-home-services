@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { doc, getDoc, getFirestore, setDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -15,6 +15,8 @@ const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
+const quoteRateLimitKey = 'be-home-services-last-quote-request';
+let adminLockTimer;
 quoteForm.dataset.openedAt = String(Date.now());
 
 // Always begin a fresh visit at the top instead of restoring a previous scroll position.
@@ -48,6 +50,13 @@ function updatePage(values) {
       return item;
     }));
   });
+  if (values.phoneNumber) {
+    const digits = values.phoneNumber.replace(/[^0-9+]/g, '');
+    document.querySelectorAll('[data-phone-link]').forEach((link) => {
+      link.href = `tel:${digits}`;
+      link.textContent = values.phoneNumber;
+    });
+  }
 }
 
 function applySavedValues(saved) {
@@ -92,6 +101,25 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
   window.location.reload();
 });
 
+function lockAdmin() {
+  clearTimeout(adminLockTimer);
+  adminSection.hidden = true;
+  signOut(auth).catch(() => {});
+  adminStatus.textContent = '';
+}
+
+function refreshAdminLock() {
+  clearTimeout(adminLockTimer);
+  adminLockTimer = window.setTimeout(lockAdmin, 15 * 60 * 1000);
+}
+
+document.querySelector('#lockAdmin').addEventListener('click', lockAdmin);
+['pointerdown', 'keydown', 'input'].forEach((eventName) => {
+  adminSection.addEventListener(eventName, () => {
+    if (!adminSection.hidden) refreshAdminLock();
+  });
+});
+
 quoteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const settings = valuesFrom(adminForm);
@@ -99,8 +127,13 @@ quoteForm.addEventListener('submit', async (event) => {
   const quote = valuesFrom(quoteForm);
   const secondsOpen = (Date.now() - Number(quoteForm.dataset.openedAt || 0)) / 1000;
   const linkCount = (quote.details.match(/https?:\/\//gi) || []).length;
+  const lastRequest = Number(localStorage.getItem(quoteRateLimitKey) || 0);
   if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
     note.textContent = 'We could not submit that request. Please review the form and try again.';
+    return;
+  }
+  if (Date.now() - lastRequest < 60 * 1000) {
+    note.textContent = 'Please wait one minute before sending another quote request.';
     return;
   }
   if (!settings.quoteEmail) {
@@ -120,6 +153,10 @@ quoteForm.addEventListener('submit', async (event) => {
         email: quote.customerEmail,
         phone: quote.customerPhone || 'Not provided',
         service: quote.service,
+        property_type: quote.propertyType,
+        preferred_contact: quote.contactMethod,
+        best_time: quote.preferredTime || 'Not provided',
+        service_address_or_neighborhood: quote.serviceArea || 'Not provided',
         message: quote.details || 'Not provided',
         _subject: `New B & E quote request — ${quote.service}`,
         _replyto: quote.customerEmail,
@@ -127,7 +164,9 @@ quoteForm.addEventListener('submit', async (event) => {
       })
     });
     if (!response.ok) throw new Error('Quote service could not accept the request.');
+    localStorage.setItem(quoteRateLimitKey, String(Date.now()));
     quoteForm.reset();
+    quoteForm.dataset.openedAt = String(Date.now());
     note.textContent = 'Thanks! Your quote request has been sent.';
   } catch (error) {
     note.textContent = 'We could not send your request. Please try again shortly.';
@@ -171,5 +210,6 @@ loginForm.addEventListener('submit', async (event) => {
   loginStatus.textContent = '';
   loginModal.hidden = true;
   adminSection.hidden = false;
+  refreshAdminLock();
   adminSection.scrollIntoView({ behavior: 'smooth' });
 });
