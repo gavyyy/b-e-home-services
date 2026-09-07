@@ -70,6 +70,7 @@ function updatePage(values) {
     pausedMessage.hidden = acceptingQuotes;
     pausedMessage.textContent = values.quotePauseMessage || 'We are not accepting new quote requests right now. Please check back soon.';
   }
+  updateQuoteEstimate();
   renderGallery(values);
   renderReviews(values);
 }
@@ -117,6 +118,21 @@ function renderReviews(values) {
   }));
 }
 
+function updateQuoteEstimate() {
+  const service = quoteForm.elements.namedItem('service').value;
+  const size = quoteForm.elements.namedItem('projectSize').value;
+  const output = document.querySelector('#quoteEstimate');
+  if (!service || !size) {
+    output.textContent = 'Choose a service and size';
+    return;
+  }
+  const outdoorServices = ['Lawn & landscaping', 'Hedge trimming', 'Tree trimming', 'Mulching', 'Pressure washing'];
+  const group = outdoorServices.includes(service) ? 'Outdoor' : 'Cleaning';
+  const field = `calc${group}${size}`;
+  const amount = Number(adminForm.elements.namedItem(field).value);
+  output.textContent = amount > 0 ? `From $${amount.toLocaleString()}` : 'Custom quote needed';
+}
+
 function applySavedValues(saved) {
   if (!saved) return;
   Object.entries(saved).forEach(([name, value]) => {
@@ -153,6 +169,9 @@ adminForm.addEventListener('submit', async (event) => {
     adminStatus.textContent = 'Saved on this device. Sign in with the owner Google account to publish everywhere.';
   }
 });
+
+quoteForm.elements.namedItem('service').addEventListener('change', updateQuoteEstimate);
+quoteForm.elements.namedItem('projectSize').addEventListener('change', updateQuoteEstimate);
 
 document.querySelector('#resetChanges').addEventListener('click', () => {
   localStorage.removeItem(storageKey);
