@@ -59,6 +59,17 @@ function updatePage(values) {
       link.textContent = values.phoneNumber;
     });
   }
+  if (typeof values.announcementEnabled === 'boolean') {
+    document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
+  }
+  if (typeof values.quoteEnabled === 'boolean') {
+    const acceptingQuotes = values.quoteEnabled;
+    quoteForm.dataset.acceptingQuotes = String(acceptingQuotes);
+    quoteForm.querySelector('button[type="submit"]').disabled = !acceptingQuotes;
+    const pausedMessage = document.querySelector('#quotePauseMessage');
+    pausedMessage.hidden = acceptingQuotes;
+    pausedMessage.textContent = values.quotePauseMessage || 'We are not accepting new quote requests right now. Please check back soon.';
+  }
   renderGallery(values);
   renderReviews(values);
 }
@@ -151,16 +162,18 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 function lockAdmin() {
   clearTimeout(adminLockTimer);
   adminSection.hidden = true;
-  signOut(auth).catch(() => {});
+  if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
 }
 
 function refreshAdminLock() {
   clearTimeout(adminLockTimer);
-  adminLockTimer = window.setTimeout(lockAdmin, 15 * 60 * 1000);
+  const lockMinutes = Number(adminForm.elements.namedItem('lockMinutes').value) || 15;
+  adminLockTimer = window.setTimeout(lockAdmin, lockMinutes * 60 * 1000);
 }
 
 document.querySelector('#lockAdmin').addEventListener('click', lockAdmin);
+document.querySelector('#quickLock').addEventListener('click', lockAdmin);
 ['pointerdown', 'keydown', 'input'].forEach((eventName) => {
   adminSection.addEventListener(eventName, () => {
     if (!adminSection.hidden) refreshAdminLock();
@@ -342,6 +355,10 @@ quoteForm.addEventListener('submit', async (event) => {
   const secondsOpen = (Date.now() - Number(quoteForm.dataset.openedAt || 0)) / 1000;
   const linkCount = (quote.details.match(/https?:\/\//gi) || []).length;
   const lastRequest = Number(localStorage.getItem(quoteRateLimitKey) || 0);
+  if (quoteForm.dataset.acceptingQuotes === 'false') {
+    note.textContent = document.querySelector('#quotePauseMessage').textContent;
+    return;
+  }
   if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
     note.textContent = 'We could not submit that request. Please review the form and try again.';
     return;
