@@ -134,7 +134,7 @@
           <p class="location">⌖ Proudly serving <span data-field="location">Columbia, South Carolina</span></p>
           <p class="contact-phone">Call or text: <a data-phone-link href="tel:+12522662160">(252) 266-2160</a></p>
         </div>
-        <form class="quote-form" id="quoteForm">
+        <form class="quote-form" id="quoteForm" method="POST">
           <div class="form-row"><label>Your name<input required name="customerName" type="text" maxlength="80" autocomplete="name" placeholder="Jane Smith" /></label><label>Phone number<input required name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" pattern="[0-9()+.\-\s]{7,}" maxlength="30" placeholder="(252) 266-2160" /></label></div>
           <label>Email address<input required name="customerEmail" type="email" maxlength="120" autocomplete="email" placeholder="jane@email.com" /></label>
           <div class="form-row"><label>Service needed<select required name="service"><option value="" selected disabled>Select a service</option><option>Lawn & landscaping</option><option>Hedge trimming</option><option>Tree trimming</option><option>Mulching</option><option>Pressure washing</option><option>Residential cleaning</option><option>Commercial cleaning</option><option>Deep cleaning</option><option>Basic home cleaning</option><option>Something else</option></select></label><label>Property type<select required name="propertyType"><option value="" selected disabled>Select one</option><option>House</option><option>Apartment / condo</option><option>Business</option><option>Rental / move-out</option><option>Other</option></select></label></div>
@@ -194,6 +194,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script type="module" src="script.js?v=20260906-7"></script>
+    <script type="module" src="script.js?v=20260906-8"></script>
   </body>
 </html>

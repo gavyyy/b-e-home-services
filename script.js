@@ -171,6 +171,17 @@ function quoteReference() {
   return `BE-${date}-${code}`;
 }
 
+function setFormField(form, name, value) {
+  let field = form.querySelector(`input[name="${name}"]`);
+  if (!field) {
+    field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = name;
+    form.append(field);
+  }
+  field.value = value;
+}
+
 async function saveQuoteForOwner(quote, reference) {
   try {
     await addDoc(quoteRequests, {
@@ -275,44 +286,38 @@ quoteForm.addEventListener('submit', async (event) => {
   const reference = quoteReference();
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
-  note.textContent = 'Sending your quote request…';
-  try {
-    const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(settings.quoteEmail)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        name: quote.customerName,
-        email: quote.customerEmail,
-        phone: quote.customerPhone || 'Not provided',
-        service: quote.service,
-        property_type: quote.propertyType,
-        preferred_contact: quote.contactMethod,
-        best_time: quote.preferredTime || 'Not provided',
-        service_address_or_neighborhood: quote.serviceArea || 'Not provided',
-        requested_service_date: quote.bookingDate || 'Not requested',
-        requested_arrival_window: quote.bookingWindow || 'No preference',
-        message: quote.details || 'Not provided',
-        quote_reference: reference,
-        _subject: `New B & E quote request ${reference} — ${quote.service}`,
-        _replyto: quote.customerEmail,
-        _template: 'table'
-      })
-    });
-    if (!response.ok) throw new Error('Quote service could not accept the request.');
-    saveQuoteForOwner(quote, reference);
-    localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-    quoteForm.reset();
-    quoteForm.dataset.openedAt = String(Date.now());
-    note.textContent = `Thanks! Your quote request has been sent. Your reference number is ${reference}.`;
-  } catch (error) {
-    note.textContent = 'We could not send your request. Please try again shortly.';
-  } finally {
-    submitButton.disabled = false;
-    submitButton.innerHTML = 'Request my free quote <span>→</span>';
-  }
+  note.textContent = 'Sending your quote request and confirmation email…';
+  const nextPage = new URL(window.location.href);
+  nextPage.searchParams.set('quote', 'sent');
+  nextPage.hash = 'contact';
+  setFormField(quoteForm, 'email', quote.customerEmail);
+  setFormField(quoteForm, 'phone', quote.customerPhone || 'Not provided');
+  setFormField(quoteForm, 'property_type', quote.propertyType);
+  setFormField(quoteForm, 'preferred_contact', quote.contactMethod);
+  setFormField(quoteForm, 'best_time', quote.preferredTime || 'Not provided');
+  setFormField(quoteForm, 'service_address_or_neighborhood', quote.serviceArea || 'Not provided');
+  setFormField(quoteForm, 'requested_service_date', quote.bookingDate || 'Not requested');
+  setFormField(quoteForm, 'requested_arrival_window', quote.bookingWindow || 'No preference');
+  setFormField(quoteForm, 'message', quote.details || 'Not provided');
+  setFormField(quoteForm, 'quote_reference', reference);
+  setFormField(quoteForm, '_subject', `New B & E quote request ${reference} — ${quote.service}`);
+  setFormField(quoteForm, '_replyto', quote.customerEmail);
+  setFormField(quoteForm, '_autoresponse', 'Thank you for contacting B & E Home Services. We received your quote request and will be in touch soon.');
+  setFormField(quoteForm, '_template', 'table');
+  setFormField(quoteForm, '_next', nextPage.href);
+  quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
+  localStorage.setItem(quoteRateLimitKey, String(Date.now()));
+  saveQuoteForOwner(quote, reference);
+  quoteForm.submit();
 });
 
 restoreSavedValues();
+
+if (new URLSearchParams(window.location.search).get('quote') === 'sent') {
+  const note = quoteForm.querySelector('.form-note');
+  note.textContent = 'Thanks! Your quote request was sent. Please check your email for a confirmation copy.';
+  history.replaceState({}, '', `${window.location.pathname}#contact`);
+}
 
 function openAdminLogin() {
   loginModal.hidden = false;
