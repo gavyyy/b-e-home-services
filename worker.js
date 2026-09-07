@@ -11,6 +11,21 @@ const codeInput = document.querySelector('#workerCode');
 const status = document.querySelector('#workerStatus');
 const jobs = document.querySelector('#workerJobs');
 const signOutButton = document.querySelector('#workerSignOut');
+let lockTimer;
+
+function lockJobBoard(message = 'Job board locked.') {
+  clearTimeout(lockTimer);
+  signOut(auth).catch(() => {});
+  signOutButton.hidden = true;
+  codeInput.value = '';
+  jobs.innerHTML = '<p>Enter your code to view B & E jobs.</p>';
+  status.textContent = message;
+}
+
+function refreshWorkerLock() {
+  clearTimeout(lockTimer);
+  lockTimer = window.setTimeout(() => lockJobBoard('Job board locked after 15 minutes of inactivity.'), 15 * 60 * 1000);
+}
 
 document.querySelectorAll('[data-key]').forEach((button) => button.addEventListener('click', () => {
   if (codeInput.value.length < 6) codeInput.value += button.dataset.key;
@@ -29,12 +44,14 @@ async function loadJobs() {
       const title = document.createElement('h2'); title.textContent = `${job.service || 'Service'} · ${job.customerName || 'Customer'}`;
       const details = document.createElement('p'); details.textContent = `Status: ${job.status || 'New'} · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`;
       const location = document.createElement('p'); location.textContent = `Location: ${job.serviceArea || 'Ask owner for location'}`;
+      const phone = document.createElement('p'); phone.textContent = `Phone: ${job.customerPhone || 'Not provided'}`;
+      const email = document.createElement('p'); email.textContent = `Email: ${job.customerEmail || 'Not provided'}`;
       const notes = document.createElement('p'); notes.textContent = job.details || 'No job notes provided.';
       const actions = document.createElement('div'); actions.className = 'worker-actions';
       if (job.serviceArea) { const maps = document.createElement('a'); maps.className = 'reset-button'; maps.target = '_blank'; maps.rel = 'noopener'; maps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.serviceArea)}`; maps.textContent = 'Open in maps'; actions.append(maps); }
       const complete = document.createElement('button'); complete.className = 'button button-small'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Completed' : 'Mark completed'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { try { await updateDoc(jobDoc.ref, { status: 'Completed' }); complete.textContent = 'Completed'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; } catch { status.textContent = 'We could not update that job. Please try again.'; } });
-      actions.append(complete); card.append(title, details, location, notes, actions); return card;
+      actions.append(complete); card.append(title, details, location, phone, email, notes, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }
 }
@@ -49,8 +66,15 @@ form.addEventListener('submit', async (event) => {
     status.textContent = 'Signed in. Your jobs are below.';
     signOutButton.hidden = false;
     await loadJobs();
+    refreshWorkerLock();
   } catch {
     status.textContent = 'That code did not work. Please try again.';
   }
 });
-signOutButton.addEventListener('click', async () => { await signOut(auth); signOutButton.hidden = true; codeInput.value = ''; jobs.innerHTML = '<p>Enter your code to view B & E jobs.</p>'; status.textContent = 'Job board locked.'; });
+signOutButton.addEventListener('click', () => lockJobBoard());
+['pointerdown', 'keydown', 'touchstart'].forEach((eventName) => document.addEventListener(eventName, () => {
+  if (!signOutButton.hidden) refreshWorkerLock();
+}));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !signOutButton.hidden) lockJobBoard('Job board locked for privacy.');
+});

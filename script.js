@@ -198,6 +198,7 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 function lockAdmin() {
   clearTimeout(adminLockTimer);
   adminSection.hidden = true;
+  localStorage.removeItem(ownerSignInPendingKey);
   if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
 }
@@ -606,7 +607,7 @@ async function finishOwnerGoogleSignIn() {
   try {
     const result = await getRedirectResult(auth);
     if (!result) return;
-    sessionStorage.removeItem(ownerSignInPendingKey);
+    localStorage.removeItem(ownerSignInPendingKey);
     if (result.user.email !== ownerEmail) {
       await signOut(auth);
       loginModal.hidden = false;
@@ -615,15 +616,15 @@ async function finishOwnerGoogleSignIn() {
     }
     unlockAdminControls();
   } catch {
-    sessionStorage.removeItem(ownerSignInPendingKey);
+    localStorage.removeItem(ownerSignInPendingKey);
     loginModal.hidden = false;
     document.querySelector('.login-status').textContent = 'Google sign-in did not finish. Please try again.';
   }
 }
 
 onAuthStateChanged(auth, (user) => {
-  if (user?.email === ownerEmail && sessionStorage.getItem(ownerSignInPendingKey) === 'true') {
-    sessionStorage.removeItem(ownerSignInPendingKey);
+  if (user?.email === ownerEmail && localStorage.getItem(ownerSignInPendingKey) === 'true') {
+    localStorage.removeItem(ownerSignInPendingKey);
     unlockAdminControls();
   }
 });
@@ -644,11 +645,16 @@ loginForm.addEventListener('submit', async (event) => {
     loginStatus.textContent = 'That PIN does not match. Please try again.';
     return;
   }
+  if (auth.currentUser?.email === ownerEmail) {
+    unlockAdminControls();
+    return;
+  }
   try {
-    sessionStorage.setItem(ownerSignInPendingKey, 'true');
+    localStorage.setItem(ownerSignInPendingKey, 'true');
+    loginStatus.textContent = 'Opening secure Google sign-in…';
     await signInWithRedirect(auth, new GoogleAuthProvider());
   } catch (error) {
-    sessionStorage.removeItem(ownerSignInPendingKey);
+    localStorage.removeItem(ownerSignInPendingKey);
     loginStatus.textContent = 'Google sign-in could not start. Please try again.';
     return;
   }
