@@ -1,12 +1,12 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(firebaseApp);
 const database = getFirestore(firebaseApp);
 const settingsDocument = doc(database, 'siteSettings', 'main');
-const ownerEmail = 'gavindun2025@gmail.com';
+const ownerEmail = 'owner@behomeservices.art';
 const storageKey = 'be-home-services-content';
 const adminForm = document.querySelector('#adminForm');
 const quoteForm = document.querySelector('#quoteForm');
@@ -14,7 +14,6 @@ const adminStatus = document.querySelector('.admin-status');
 const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
-const adminAccessPin = '2026';
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
@@ -613,27 +612,17 @@ loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const pin = document.querySelector('#adminPassword').value;
   const loginStatus = document.querySelector('.login-status');
-  if (pin !== adminAccessPin) {
-    loginStatus.textContent = 'That PIN does not match. Please try again.';
-    return;
-  }
-  if (auth.currentUser?.email === ownerEmail) {
-    unlockAdminControls();
+  if (!/^\d{6}$/.test(pin)) {
+    loginStatus.textContent = 'Enter your six-digit owner PIN.';
     return;
   }
   try {
-    loginStatus.textContent = 'Opening secure Google sign-in…';
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const result = await signInWithPopup(auth, provider);
-    if (result.user.email !== ownerEmail) {
-      await signOut(auth);
-      loginStatus.textContent = 'Please sign in with the approved owner Google account.';
-      return;
-    }
+    loginStatus.textContent = 'Unlocking owner controls…';
+    const result = await signInWithEmailAndPassword(auth, ownerEmail, pin);
+    if (result.user.email !== ownerEmail) throw new Error('Owner sign-in required');
     unlockAdminControls();
   } catch (error) {
-    loginStatus.textContent = 'Google sign-in did not finish. Please allow the sign-in window, then try again.';
+    loginStatus.textContent = 'That owner PIN did not work. Please try again.';
     return;
   }
 });
