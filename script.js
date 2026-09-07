@@ -236,6 +236,21 @@ async function loadQuoteInbox() {
 
 document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbox);
 
+document.querySelector('#createReviewInvite').addEventListener('click', async () => {
+  const name = document.querySelector('#reviewCustomerName').value.trim();
+  const jobDate = document.querySelector('#reviewJobDate').value || new Date().toISOString().slice(0, 10);
+  const jobCode = `JOB-${jobDate.replaceAll('-', '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const invite = new URL('review.html', window.location.href);
+  invite.searchParams.set('job', jobCode);
+  const status = document.querySelector('#reviewInviteStatus');
+  try {
+    await navigator.clipboard.writeText(invite.href);
+    status.textContent = `${name ? `${name}'s ` : ''}review link copied. Send it on or after the job date.`;
+  } catch (error) {
+    status.textContent = `Review link: ${invite.href}`;
+  }
+});
+
 quoteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const settings = valuesFrom(adminForm);
