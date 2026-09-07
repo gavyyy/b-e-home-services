@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(firebaseApp);
@@ -321,6 +321,25 @@ async function loadQuoteInbox() {
       estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
       actions.append(saveEstimate, requestPdf, estimatePdf);
+      if (quote.status === 'Completed') {
+        const deleteProject = document.createElement('button');
+        deleteProject.type = 'button';
+        deleteProject.textContent = 'Delete completed project';
+        deleteProject.addEventListener('click', async () => {
+          const confirmed = window.confirm(`Permanently delete completed project ${quote.reference || ''}? This cannot be undone.`);
+          if (!confirmed) return;
+          deleteProject.disabled = true;
+          deleteProject.textContent = 'Deleting…';
+          try {
+            await deleteDoc(quoteDoc.ref);
+            await loadQuoteInbox();
+          } catch (error) {
+            deleteProject.disabled = false;
+            deleteProject.textContent = 'Could not delete';
+          }
+        });
+        actions.append(deleteProject);
+      }
       item.append(title, info, details, status, estimateAmount, estimateNotes, actions);
       return item;
     }));
