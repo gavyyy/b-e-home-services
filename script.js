@@ -68,9 +68,11 @@ function renderGallery(values) {
   const photos = ['One', 'Two', 'Three'].map((number) => ({ image: values[`gallery${number}Image`], caption: values[`gallery${number}Caption`] }));
   const visiblePhotos = photos.filter(({ image }) => image && /^https:\/\//i.test(image));
   if (!visiblePhotos.length) {
-    gallery.innerHTML = '<p class="review-empty">Project photos will be shared here soon.</p>';
+    gallery.hidden = true;
+    gallery.replaceChildren();
     return;
   }
+  gallery.hidden = false;
   gallery.replaceChildren(...visiblePhotos.map(({ image, caption }) => {
     const card = document.createElement('article');
     card.className = 'gallery-card';
