@@ -145,7 +145,7 @@
 
       <section class="customer-portal section" id="customerPortal">
         <div class="customer-copy"><p class="eyebrow">Customer access</p><h2>Check your <em>quote &amp; schedule.</em></h2><p>Create an account using the same email address used on your quote request. You can then view your request status, preferred job date, and completed-work history.</p></div>
-        <div class="portal-card"><form id="customerLoginForm"><label>Email address<input required name="customerPortalEmail" type="email" autocomplete="email" placeholder="Use the email from your quote" /></label><label>Create or enter your password<input required name="customerPortalPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Choose any password — 6+ characters" /></label><p class="portal-status">First visit? Type a new password above, then select Create my account.</p><div class="portal-actions"><button class="button" type="submit">Sign in <span>→</span></button><button class="reset-button" type="button" id="createCustomerAccount">Create my account</button></div><p class="portal-status" id="customerPortalStatus" aria-live="polite"></p></form><div id="customerQuoteList" class="customer-quote-list"><p>Sign in to view your B &amp; E quote status.</p></div><button class="reset-button" type="button" id="customerSignOut" hidden>Sign out</button></div>
+        <div class="portal-card"><form id="customerLoginForm"><label>Email address<input required name="customerPortalEmail" type="email" autocomplete="email" placeholder="Use the email from your quote" /></label><label>Create or enter your password<input required name="customerPortalPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Choose any password — 6+ characters" /></label><p class="portal-status">First visit? Type a new password above, then select Create my account.</p><div class="portal-actions"><button class="button" type="submit">Sign in <span>→</span></button><button class="reset-button" type="button" id="createCustomerAccount">Create my account</button><button class="reset-button" type="button" id="resetCustomerPassword">Send password reset link</button></div><p class="portal-status" id="customerPortalStatus" aria-live="polite"></p></form><div id="customerQuoteList" class="customer-quote-list"><p>Sign in to view your B &amp; E quote status.</p></div><button class="reset-button" type="button" id="customerSignOut" hidden>Sign out</button></div>
       </section>
 
       <section class="contact section" id="contact">
@@ -225,6 +225,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script type="module" src="script.js?v=20260906-19"></script>
+    <script type="module" src="script.js?v=20260906-20"></script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -471,6 +471,20 @@ document.querySelector('#createCustomerAccount').addEventListener('click', async
       return;
     }
     customerPortalStatus.textContent = 'We could not create the account just yet. Please try again in a moment.';
+  }
+});
+
+document.querySelector('#resetCustomerPassword').addEventListener('click', async () => {
+  const email = customerLoginForm.elements.namedItem('customerPortalEmail').value.trim();
+  if (!email) {
+    customerPortalStatus.textContent = 'Enter your quote email first, then select Send reset link.';
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    customerPortalStatus.textContent = 'Password reset link sent. Check your email, including spam, then return here to sign in.';
+  } catch (error) {
+    customerPortalStatus.textContent = 'We could not send a reset link yet. Double-check the email address and try again.';
   }
 });
 
