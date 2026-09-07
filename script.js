@@ -228,6 +228,8 @@ async function saveQuoteForOwner(quote, reference) {
       customerPhone: quote.customerPhone,
       service: quote.service,
       propertyType: quote.propertyType,
+      projectSize: quote.projectSize || '',
+      calculatorEstimate: quote.calculatorEstimate || 'Custom quote needed',
       contactMethod: quote.contactMethod,
       preferredTime: quote.preferredTime || '',
       bookingDate: quote.bookingDate || '',
@@ -311,7 +313,7 @@ async function loadQuoteInbox() {
 }
 
 function downloadQuotePdf(title, quote) {
-  const calculatorEstimate = (quote.details || '').match(/Calculator starting estimate: (.*)/)?.[1] || 'Not available';
+  const calculatorEstimate = quote.calculatorEstimate || (quote.details || '').match(/Calculator starting estimate: (.*)/)?.[1] || 'Not available';
   const details = [
     title,
     `Reference: ${quote.reference || 'Not provided'}`,
@@ -398,7 +400,6 @@ quoteForm.addEventListener('submit', async (event) => {
   const submitButton = quoteForm.querySelector('button');
   const reference = quoteReference();
   const calculator = getQuoteEstimate();
-  const calculatorDetail = `\n\nCalculator starting estimate: ${calculator.label}${calculator.size ? ` (${calculator.size} project)` : ''}`;
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
   note.textContent = 'Sending your quote request and confirmation email…';
@@ -423,7 +424,7 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, '_next', nextPage.href);
   quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
   localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-  saveQuoteForOwner({ ...quote, details: `${quote.details.trim()}${calculatorDetail}` }, reference);
+  saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
   quoteForm.submit();
 });
 
