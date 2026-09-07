@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, inMemoryPersistence, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -618,20 +618,11 @@ loginForm.addEventListener('submit', async (event) => {
   }
   try {
     loginStatus.textContent = 'Unlocking owner controls…';
-    const timeout = new Promise((_, reject) => window.setTimeout(() => reject(new Error('timeout')), 10000));
-    const result = await Promise.race([
-      (async () => {
-        await setPersistence(auth, inMemoryPersistence);
-        return signInWithEmailAndPassword(auth, ownerEmail, pin);
-      })(),
-      timeout
-    ]);
+    const result = await signInWithEmailAndPassword(auth, ownerEmail, pin);
     if (result.user.email !== ownerEmail) throw new Error('Owner sign-in required');
     unlockAdminControls();
   } catch (error) {
-    loginStatus.textContent = error.message === 'timeout'
-      ? 'The owner sign-in service did not respond. Check your connection, then try again.'
-      : 'That owner PIN did not work. Please try again.';
+    loginStatus.textContent = 'That owner PIN did not work. Please try again.';
     return;
   }
 });
