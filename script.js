@@ -154,6 +154,7 @@ function applySavedValues(saved) {
     const field = adminForm.elements.namedItem(name);
     if (field) {
       if (field.type === 'checkbox') field.checked = value === true;
+      else if (name === 'workerEmails' && Array.isArray(value)) field.value = value.join('\n');
       else field.value = value;
     }
   });
@@ -174,6 +175,7 @@ async function restoreSavedValues() {
 adminForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const values = valuesFrom(adminForm);
+  values.workerEmails = String(values.workerEmails || '').split(/[\n,]/).map((email) => email.trim().toLowerCase()).filter(Boolean);
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
   try {

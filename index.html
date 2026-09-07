@@ -39,10 +39,11 @@
         <span class="brand-name"><span data-field="businessName">Home Services</span><small data-field="location">Columbia, South Carolina</small></span>
       </a>
       <nav aria-label="Main navigation">
-        <a href="#services">Services</a>
-        <a href="#why-us">Why us</a>
+        <a href="services.html">Services</a>
+        <a href="work.html">Our work</a>
+        <a href="about.html">About us</a>
         <a href="#customerPortal">My quote</a>
-        <a href="#contact">Contact</a>
+        <a href="worker.html">Worker access</a>
       </nav>
       <a class="header-phone" href="tel:+12522662160">Call/text (252) 266-2160</a>
       <a class="button button-small" href="#contact">Get a free quote</a>
@@ -57,7 +58,8 @@
           <p class="hero-text" data-field="heroText">Brandon and Elena bring reliable lawn care, beautiful landscaping, and spotless home cleaning to Columbia, South Carolina.</p>
           <div class="hero-actions">
             <a class="button" href="#contact">Request a free estimate <span>→</span></a>
-            <a class="text-link" href="#services">Explore services <span>↓</span></a>
+            <a class="text-link" href="services.html">Explore services <span>→</span></a>
+            <a class="text-link" href="work.html">See our work <span>→</span></a>
           </div>
           <div class="rating" aria-label="Quality work guaranteed">
             <div class="rating-leaves">✦ ✦ ✦</div>
@@ -176,7 +178,7 @@
       </section>
     </main>
     <div class="quick-contact" aria-label="Quick contact options"><a href="tel:+12522662160" aria-label="Call B and E Home Services">☎ <span>Call</span></a><a href="sms:+12522662160" aria-label="Text B and E Home Services">✉ <span>Text</span></a></div>
-    <footer><a class="brand" href="#top"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name" data-field="businessName">Home Services</span></a><p data-field="footerText">Reliable help for home and yard in Columbia, SC.</p><div class="footer-meta"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><button class="admin-login-button" type="button" id="openAdmin">Owner login</button></div></footer>
+    <footer><a class="brand" href="#top"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name" data-field="businessName">Home Services</span></a><p data-field="footerText">Reliable help for home and yard in Columbia, SC.</p><div class="footer-meta"><a href="services.html">Services</a><a href="work.html">Our work</a><a href="worker.html">Worker access</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><button class="admin-login-button" type="button" id="openAdmin">Owner login</button></div></footer>
 
     <section class="admin-section" id="admin" hidden>
       <div class="admin-intro"><p class="eyebrow">Owner tools</p><h2>Admin controls</h2><p>Update the page and choose the inbox that receives quote requests. Saved changes are shared across the live website.</p><button class="reset-button quick-lock" type="button" id="quickLock">Lock &amp; sign out now</button></div>
@@ -187,6 +189,7 @@
           <fieldset class="admin-panel full"><legend>Website visits</legend><p>Visitor tracking is connected. See visits, popular pages, and visitor activity in the B & E Home Services Google Analytics dashboard.</p><label>Google Analytics Measurement ID <input name="analyticsId" value="G-950R6WG3C3" readonly /></label><small>Tracking begins as visitors use the live website. Data can take up to 24 hours to appear in Google Analytics.</small></fieldset>
           <fieldset class="admin-panel full"><legend>Business listings</legend><p>Add your official Google review link when you have it. Only use the direct Google review URL for B &amp; E.</p><label>Google review link<input name="googleReviewUrl" type="url" placeholder="https://g.page/r/.../review" /></label></fieldset>
           <fieldset class="admin-panel full"><legend>Admin lock &amp; security</legend><p>Owner changes require both the PIN screen and the approved Google owner account. Choose how quickly this admin page locks after inactivity.</p><div class="admin-grid"><label>Auto-lock after<select name="lockMinutes"><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="30">30 minutes</option></select></label><label class="full"><input name="signOutOnLock" type="checkbox" checked /> Sign out of the owner Google account when locking</label></div><small>The PIN is a local first step. The Google owner sign-in is what protects shared controls and saved website changes.</small></fieldset>
+          <fieldset class="admin-panel full"><legend>Worker access</legend><p>Add approved worker email addresses below, one per line. Only these workers can sign in to the Worker Access page and view job details, locations, and completion controls.</p><label>Approved worker emails<textarea name="workerEmails" rows="3" placeholder="worker@email.com"></textarea></label><small>Workers create their own password on the Worker Access page using one of these approved email addresses.</small></fieldset>
           <fieldset class="admin-panel full"><legend>Customer experience</legend><p>Control the message customers see before they request a quote.</p><div class="admin-grid"><label>Site color style<select name="siteTheme"><option value="forest">Forest green</option><option value="warm">Warm earth</option><option value="clean">Clean blue</option></select></label><label>Availability label<input name="availabilityText" maxlength="70" value="Now booking new projects" /></label><label>Business hours<input name="businessHours" maxlength="80" value="Mon–Sat, 8 AM–6 PM" /></label><label>Quote button wording<input name="quoteButtonText" maxlength="45" value="Request my free quote" /></label><label class="full">Consent wording<textarea name="consentText" rows="2" maxlength="220">I agree that B &amp; E Home Services may contact me about this quote request.</textarea></label></div><small>Changes are published when you select “Save page changes.”</small></fieldset>
           <label>Business name<input name="businessName" value="Home Services" /></label>
           <label>Service area<input name="location" value="Columbia, South Carolina" /></label>
