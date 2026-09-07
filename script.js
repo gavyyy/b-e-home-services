@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(firebaseApp);
@@ -18,6 +18,9 @@ const adminAccessPin = '2026';
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
+const customerLoginForm = document.querySelector('#customerLoginForm');
+const customerPortalStatus = document.querySelector('#customerPortalStatus');
+const customerQuoteList = document.querySelector('#customerQuoteList');
 let adminLockTimer;
 quoteForm.dataset.openedAt = String(Date.now());
 
@@ -63,6 +66,7 @@ function updatePage(values) {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
+  renderGoogleReviewLink(values);
   if (typeof values.quoteEnabled === 'boolean') {
     const acceptingQuotes = values.quoteEnabled;
     quoteForm.dataset.acceptingQuotes = String(acceptingQuotes);
@@ -74,6 +78,13 @@ function updatePage(values) {
   updateQuoteEstimate();
   renderGallery(values);
   renderReviews(values);
+}
+
+function renderGoogleReviewLink(values) {
+  const link = document.querySelector('#googleReviewLink');
+  const url = values.googleReviewUrl;
+  link.hidden = !url || !/^https:\/\//i.test(url);
+  if (!link.hidden) link.href = url;
 }
 
 function renderGallery(values) {
@@ -250,6 +261,7 @@ async function loadQuoteInbox() {
   quoteList.innerHTML = '<p class="quote-empty">Loading quote requests…</p>';
   try {
     const results = await getDocs(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)));
+    renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
     if (results.empty) {
       quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
       return;
@@ -313,6 +325,27 @@ async function loadQuoteInbox() {
   }
 }
 
+function renderOwnerDashboard(quotes) {
+  const dashboard = document.querySelector('#dashboardStats');
+  const customers = new Set(quotes.map((quote) => quote.customerEmail).filter(Boolean)).size;
+  const completed = quotes.filter((quote) => quote.status === 'Completed').length;
+  const active = quotes.filter((quote) => !['Completed', 'Closed'].includes(quote.status || 'New')).length;
+  dashboard.replaceChildren(...[
+    ['Customers', customers],
+    ['Active jobs', active],
+    ['Completed work', completed]
+  ].map(([label, value]) => {
+    const stat = document.createElement('article');
+    stat.className = 'dashboard-stat';
+    const total = document.createElement('strong');
+    total.textContent = String(value);
+    const name = document.createElement('span');
+    name.textContent = label;
+    stat.append(total, name);
+    return stat;
+  }));
+}
+
 function downloadQuotePdf(title, quote) {
   const calculatorEstimate = quote.calculatorEstimate || (quote.details || '').match(/Calculator starting estimate: (.*)/)?.[1] || 'Not available';
   const details = [
@@ -358,6 +391,76 @@ function downloadQuotePdf(title, quote) {
 }
 
 document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbox);
+
+async function loadCustomerQuotes() {
+  const user = auth.currentUser;
+  if (!user?.email) return;
+  customerQuoteList.innerHTML = '<p>Loading your quote status…</p>';
+  try {
+    const results = await getDocs(query(quoteRequests, where('customerEmail', '==', user.email)));
+    const quotes = results.docs.map((quoteDoc) => quoteDoc.data()).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    if (!quotes.length) {
+      customerQuoteList.innerHTML = '<p>No quote requests were found for this email address yet.</p>';
+      return;
+    }
+    customerQuoteList.replaceChildren(...quotes.map((quote) => {
+      const item = document.createElement('article');
+      item.className = 'customer-quote';
+      const heading = document.createElement('strong');
+      heading.textContent = `${quote.reference || 'Quote request'} · ${quote.service || 'Service'}`;
+      const status = document.createElement('p');
+      status.textContent = `Status: ${quote.status || 'New'}`;
+      const schedule = document.createElement('p');
+      schedule.textContent = `Requested schedule: ${quote.bookingDate || 'Not selected'}${quote.bookingWindow ? ` · ${quote.bookingWindow}` : ''}`;
+      const estimate = document.createElement('p');
+      estimate.textContent = `Starting estimate: ${quote.calculatorEstimate || 'Custom quote needed'}`;
+      item.append(heading, status, schedule, estimate);
+      return item;
+    }));
+  } catch (error) {
+    customerQuoteList.innerHTML = '<p>Your account is ready, but quote access is still being set up. Please try again in a minute.</p>';
+  }
+}
+
+customerLoginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const email = customerLoginForm.elements.namedItem('customerPortalEmail').value.trim();
+  const password = customerLoginForm.elements.namedItem('customerPortalPassword').value;
+  customerPortalStatus.textContent = 'Signing in…';
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    customerPortalStatus.textContent = 'Signed in. Your quote details are below.';
+    document.querySelector('#customerSignOut').hidden = false;
+    loadCustomerQuotes();
+  } catch (error) {
+    customerPortalStatus.textContent = 'Sign-in did not work. Check your email and password, or create an account.';
+  }
+});
+
+document.querySelector('#createCustomerAccount').addEventListener('click', async () => {
+  const email = customerLoginForm.elements.namedItem('customerPortalEmail').value.trim();
+  const password = customerLoginForm.elements.namedItem('customerPortalPassword').value;
+  if (!email || password.length < 6) {
+    customerPortalStatus.textContent = 'Enter your quote email and a password with at least 6 characters.';
+    return;
+  }
+  customerPortalStatus.textContent = 'Creating your account…';
+  try {
+    await createUserWithEmailAndPassword(auth, email, password);
+    customerPortalStatus.textContent = 'Account created. Your quote details are below.';
+    document.querySelector('#customerSignOut').hidden = false;
+    loadCustomerQuotes();
+  } catch (error) {
+    customerPortalStatus.textContent = 'Could not create that account. Try signing in, or use a different password.';
+  }
+});
+
+document.querySelector('#customerSignOut').addEventListener('click', async () => {
+  await signOut(auth);
+  customerPortalStatus.textContent = 'Signed out.';
+  customerQuoteList.innerHTML = '<p>Sign in to view your B & E quote status.</p>';
+  document.querySelector('#customerSignOut').hidden = true;
+});
 
 document.querySelector('#createReviewInvite').addEventListener('click', async () => {
   const name = document.querySelector('#reviewCustomerName').value.trim();
