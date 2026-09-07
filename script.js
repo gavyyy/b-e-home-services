@@ -38,7 +38,7 @@ function valuesFrom(form) {
 }
 
 function updatePage(values) {
-  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showContact: 'contact' };
+  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact', showWorkerLink: 'workerNavLink' };
   Object.entries(sections).forEach(([setting, id]) => {
     if (typeof values[setting] === 'boolean') document.querySelector(`#${id}`).hidden = !values[setting];
   });
@@ -176,7 +176,6 @@ async function restoreSavedValues() {
 adminForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const values = valuesFrom(adminForm);
-  values.workerEmails = String(values.workerEmails || '').split(/[\n,]/).map((email) => email.trim().toLowerCase()).filter(Boolean);
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
   try {
@@ -215,6 +214,10 @@ document.querySelector('#quickLock').addEventListener('click', lockAdmin);
   adminSection.addEventListener(eventName, () => {
     if (!adminSection.hidden) refreshAdminLock();
   });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !adminSection.hidden && adminForm.elements.namedItem('lockOnHidden').checked) lockAdmin();
 });
 
 function quoteReference() {
@@ -530,12 +533,15 @@ quoteForm.addEventListener('submit', async (event) => {
     note.textContent = 'Please attach only JPG or PNG job photos, up to 10 MB total.';
     return;
   }
-  if (quote.companyWebsite || secondsOpen < 3 || linkCount > 2) {
+  const minimumSeconds = Number(settings.quoteMinSeconds || 5);
+  const maximumLinks = Number(settings.quoteMaxLinks || 2);
+  const cooldownMs = Number(settings.quoteCooldownMinutes || 1) * 60 * 1000;
+  if (quote.companyWebsite || secondsOpen < minimumSeconds || linkCount > maximumLinks) {
     note.textContent = 'We could not submit that request. Please review the form and try again.';
     return;
   }
-  if (Date.now() - lastRequest < 60 * 1000) {
-    note.textContent = 'Please wait one minute before sending another quote request.';
+  if (Date.now() - lastRequest < cooldownMs) {
+    note.textContent = 'Please wait before sending another quote request.';
     return;
   }
   if (!settings.quoteEmail) {
