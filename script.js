@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, getAuth, getRedirectResult, GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -15,6 +15,7 @@ const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const adminAccessPin = '2026';
+const ownerSignInPendingKey = 'be-owner-sign-in-pending';
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
@@ -585,6 +586,32 @@ function openAdminLogin() {
   document.querySelector('#adminPassword').focus();
 }
 
+function unlockAdminControls() {
+  loginForm.reset();
+  document.querySelector('.login-status').textContent = '';
+  loginModal.hidden = true;
+  adminSection.hidden = false;
+  refreshAdminLock();
+  loadQuoteInbox();
+  adminSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function finishOwnerGoogleSignIn() {
+  try {
+    const result = await getRedirectResult(auth);
+    if (!result) return;
+    const signInWasRequested = sessionStorage.getItem(ownerSignInPendingKey) === 'true';
+    sessionStorage.removeItem(ownerSignInPendingKey);
+    if (!signInWasRequested || result.user.email !== ownerEmail) {
+      await signOut(auth);
+      return;
+    }
+    unlockAdminControls();
+  } catch {
+    sessionStorage.removeItem(ownerSignInPendingKey);
+  }
+}
+
 document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
 
 if (new URLSearchParams(window.location.search).get('admin') === 'true') {
@@ -602,17 +629,13 @@ loginForm.addEventListener('submit', async (event) => {
     return;
   }
   try {
-    const result = await signInWithPopup(auth, new GoogleAuthProvider());
-    if (result.user.email !== ownerEmail) throw new Error('Wrong account');
+    sessionStorage.setItem(ownerSignInPendingKey, 'true');
+    await signInWithRedirect(auth, new GoogleAuthProvider());
   } catch (error) {
-    loginStatus.textContent = 'Use the owner Google account to unlock shared admin controls.';
+    sessionStorage.removeItem(ownerSignInPendingKey);
+    loginStatus.textContent = 'Google sign-in could not start. Please try again.';
     return;
   }
-  loginForm.reset();
-  loginStatus.textContent = '';
-  loginModal.hidden = true;
-  adminSection.hidden = false;
-  refreshAdminLock();
-  loadQuoteInbox();
-  adminSection.scrollIntoView({ behavior: 'smooth' });
 });
+
+finishOwnerGoogleSignIn();
