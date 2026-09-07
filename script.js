@@ -227,7 +227,7 @@ async function loadQuoteInbox() {
       const details = document.createElement('p');
       details.textContent = quote.details || '';
       const status = document.createElement('select');
-      ['New', 'Contacted', 'Scheduled', 'Completed', 'Closed'].forEach((option) => {
+      ['New', 'Contacted', 'Scheduled', 'Estimate ready', 'Estimate sent', 'Completed', 'Closed'].forEach((option) => {
         const choice = document.createElement('option');
         choice.value = option;
         choice.textContent = option;
@@ -237,12 +237,82 @@ async function loadQuoteInbox() {
       status.addEventListener('change', async () => {
         try { await updateDoc(quoteDoc.ref, { status: status.value }); } catch (error) { status.value = quote.status || 'New'; }
       });
-      item.append(title, info, details, status);
+      const estimateAmount = document.createElement('input');
+      estimateAmount.placeholder = 'Estimate amount, such as $150';
+      estimateAmount.value = quote.estimateAmount || '';
+      const estimateNotes = document.createElement('textarea');
+      estimateNotes.rows = 2;
+      estimateNotes.placeholder = 'Estimate details, scope, or notes';
+      estimateNotes.value = quote.estimateNotes || '';
+      const actions = document.createElement('div');
+      actions.className = 'quote-actions';
+      const saveEstimate = document.createElement('button');
+      saveEstimate.type = 'button';
+      saveEstimate.textContent = 'Save estimate';
+      saveEstimate.addEventListener('click', async () => {
+        try {
+          await updateDoc(quoteDoc.ref, { estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() });
+          saveEstimate.textContent = 'Saved';
+          setTimeout(() => { saveEstimate.textContent = 'Save estimate'; }, 1500);
+        } catch (error) { saveEstimate.textContent = 'Could not save'; }
+      });
+      const requestPdf = document.createElement('button');
+      requestPdf.type = 'button';
+      requestPdf.textContent = 'Download request PDF';
+      requestPdf.addEventListener('click', () => downloadQuotePdf('Customer quote request', quote));
+      const estimatePdf = document.createElement('button');
+      estimatePdf.type = 'button';
+      estimatePdf.textContent = 'Download estimate PDF';
+      estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
+      actions.append(saveEstimate, requestPdf, estimatePdf);
+      item.append(title, info, details, status, estimateAmount, estimateNotes, actions);
       return item;
     }));
   } catch (error) {
     quoteList.innerHTML = '<p class="quote-empty">Private quote tracking is not enabled yet.</p>';
   }
+}
+
+function downloadQuotePdf(title, quote) {
+  const details = [
+    title,
+    `Reference: ${quote.reference || 'Not provided'}`,
+    `Customer: ${quote.customerName || 'Not provided'}`,
+    `Email: ${quote.customerEmail || 'Not provided'}`,
+    `Phone: ${quote.customerPhone || 'Not provided'}`,
+    `Service: ${quote.service || 'Not provided'}`,
+    `Property: ${quote.propertyType || 'Not provided'}`,
+    `Status: ${quote.status || 'New'}`,
+    `Requested date: ${quote.bookingDate || 'Not requested'}`,
+    `Address / area: ${quote.serviceArea || 'Not provided'}`,
+    '',
+    'Customer request:',
+    quote.details || 'Not provided',
+    '',
+    'Estimate:',
+    quote.estimateAmount || 'Not set',
+    quote.estimateNotes || 'No estimate notes yet.'
+  ];
+  const lines = details.flatMap((line) => String(line).match(/.{1,78}(?:\s|$)|\S+?(?:\s|$)/g) || ['']);
+  const escapePdf = (text) => text.replace(/\\/g, '\\\\').replace(/[()]/g, '\\$&').replace(/[^\x20-\x7e]/g, '?');
+  const textStream = ['BT', '/F1 12 Tf', '50 760 Td', ...lines.map((line, index) => `${index ? '0 -16 Td' : ''} (${escapePdf(line.trim())}) Tj`), 'ET'].join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${textStream.length} >>\nstream\n${textStream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => { offsets.push(pdf.length); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+  link.download = `${(quote.reference || 'be-quote').toLowerCase()}-${title.includes('estimate') ? 'estimate' : 'request'}.pdf`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbox);
