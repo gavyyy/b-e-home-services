@@ -119,18 +119,21 @@ function renderReviews(values) {
 }
 
 function updateQuoteEstimate() {
+  const estimate = getQuoteEstimate();
+  document.querySelector('#quoteEstimate').textContent = estimate.label;
+}
+
+function getQuoteEstimate() {
   const service = quoteForm.elements.namedItem('service').value;
   const size = quoteForm.elements.namedItem('projectSize').value;
-  const output = document.querySelector('#quoteEstimate');
   if (!service || !size) {
-    output.textContent = 'Choose a service and size';
-    return;
+    return { label: 'Choose a service and size', size, service };
   }
   const outdoorServices = ['Lawn & landscaping', 'Hedge trimming', 'Tree trimming', 'Mulching', 'Pressure washing'];
   const group = outdoorServices.includes(service) ? 'Outdoor' : 'Cleaning';
   const field = `calc${group}${size}`;
   const amount = Number(adminForm.elements.namedItem(field).value);
-  output.textContent = amount > 0 ? `From $${amount.toLocaleString()}` : 'Custom quote needed';
+  return { label: amount > 0 ? `From $${amount.toLocaleString()}` : 'Custom quote needed', size, service };
 }
 
 function applySavedValues(saved) {
@@ -292,11 +295,11 @@ async function loadQuoteInbox() {
       });
       const requestPdf = document.createElement('button');
       requestPdf.type = 'button';
-      requestPdf.textContent = 'Download request PDF';
+      requestPdf.textContent = 'Download request + calculator PDF';
       requestPdf.addEventListener('click', () => downloadQuotePdf('Customer quote request', quote));
       const estimatePdf = document.createElement('button');
       estimatePdf.type = 'button';
-      estimatePdf.textContent = 'Download estimate PDF';
+      estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
       actions.append(saveEstimate, requestPdf, estimatePdf);
       item.append(title, info, details, status, estimateAmount, estimateNotes, actions);
@@ -308,6 +311,7 @@ async function loadQuoteInbox() {
 }
 
 function downloadQuotePdf(title, quote) {
+  const calculatorEstimate = (quote.details || '').match(/Calculator starting estimate: (.*)/)?.[1] || 'Not available';
   const details = [
     title,
     `Reference: ${quote.reference || 'Not provided'}`,
@@ -319,6 +323,7 @@ function downloadQuotePdf(title, quote) {
     `Status: ${quote.status || 'New'}`,
     `Requested date: ${quote.bookingDate || 'Not requested'}`,
     `Address / area: ${quote.serviceArea || 'Not provided'}`,
+    `Calculator starting estimate: ${calculatorEstimate}`,
     '',
     'Customer request:',
     quote.details || 'Not provided',
@@ -392,6 +397,8 @@ quoteForm.addEventListener('submit', async (event) => {
   }
   const submitButton = quoteForm.querySelector('button');
   const reference = quoteReference();
+  const calculator = getQuoteEstimate();
+  const calculatorDetail = `\n\nCalculator starting estimate: ${calculator.label}${calculator.size ? ` (${calculator.size} project)` : ''}`;
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
   note.textContent = 'Sending your quote request and confirmation email…';
@@ -408,14 +415,15 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, 'requested_arrival_window', quote.bookingWindow || 'No preference');
   setFormField(quoteForm, 'message', quote.details || 'Not provided');
   setFormField(quoteForm, 'quote_reference', reference);
+  setFormField(quoteForm, 'calculator_starting_estimate', calculator.label);
   setFormField(quoteForm, '_subject', `New B & E quote request ${reference} — ${quote.service}`);
   setFormField(quoteForm, '_replyto', quote.customerEmail);
-  setFormField(quoteForm, '_autoresponse', 'Thank you for contacting B & E Home Services. We received your quote request and will be in touch soon.');
+  setFormField(quoteForm, '_autoresponse', `Thank you for contacting B & E Home Services. We received your quote request. Your reference number is ${reference}. Your calculator starting estimate is ${calculator.label}. This is not a final quote; B & E will review the job details and contact you soon.`);
   setFormField(quoteForm, '_template', 'table');
   setFormField(quoteForm, '_next', nextPage.href);
   quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
   localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-  saveQuoteForOwner(quote, reference);
+  saveQuoteForOwner({ ...quote, details: `${quote.details.trim()}${calculatorDetail}` }, reference);
   quoteForm.submit();
 });
 
