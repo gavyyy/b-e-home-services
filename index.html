@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Reliable lawn, landscaping, pressure washing, and home cleaning in Columbia, South Carolina." />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=(), payment=()" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://formsubmit.co; img-src 'self' data: https:; frame-src https://accounts.google.com; form-action https://formsubmit.co; base-uri 'self'; object-src 'none'" />
     <title>B & E Home Services | Columbia, SC</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,6 +28,7 @@
       .header-phone{color:#355948;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}@media(max-width:760px){.header-phone{display:none}}.quote-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quote-form .form-check{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.45}.quote-form .form-check input{width:auto;margin-top:3px}.quote-form select,.quote-form input,.quote-form textarea{max-width:100%}@media(max-width:520px){.quote-form .form-row{grid-template-columns:1fr}}
       .advanced-section{padding:90px clamp(24px,8vw,130px)}.advanced-heading{max-width:620px;margin-bottom:35px}.advanced-heading h2{margin:8px 0;font-size:clamp(38px,5vw,60px)}.advanced-heading>p:last-child{color:#5c7067}.price-grid,.gallery-grid,.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.price-card,.review-card{padding:26px;border:1px solid #cbd9c8;background:#fffdf8}.price-card h3{margin:8px 0;font:600 25px Fraunces,serif;color:#21483b}.price-card p,.review-card p{color:#5a7066;line-height:1.6}.price-card span{font:700 12px 'DM Sans',sans-serif;color:#356746;text-transform:uppercase;letter-spacing:.08em}.gallery-section{background:#edf3ea}.gallery-card{min-height:255px;display:flex;align-items:flex-end;padding:20px;background:linear-gradient(140deg,#355948,#86a480);background-position:center;background-size:cover;color:#fffdf8}.gallery-card span{padding:8px 10px;background:#17392db3;font:700 12px 'DM Sans',sans-serif}.review-card{border-top:4px solid #749881}.review-card strong{display:block;margin-top:16px;color:#21483b}.review-card cite{font-size:13px;color:#708078;font-style:normal}.review-empty{color:#65776e}.booking-note{margin:0;color:#5b7066;font-size:12px;line-height:1.45}.quote-list{display:grid;gap:10px;margin-top:13px}.quote-item{padding:13px;border:1px solid #d5e0d2;background:#fff}.quote-item p{margin:2px 0;font-size:13px}.quote-item select{width:auto!important;padding:6px!important}.quote-item input,.quote-item textarea{width:100%;margin-top:7px;padding:8px;border:1px solid #d2ddd0;font:13px 'DM Sans',sans-serif}.quote-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.quote-actions button{border:1px solid #6c887a;background:#fff;padding:7px 9px;color:#274f40;font:700 12px 'DM Sans',sans-serif;cursor:pointer}.quote-empty{margin:12px 0 0;color:#64786e;font-size:13px}@media(max-width:800px){.price-grid,.gallery-grid,.review-grid{grid-template-columns:1fr}.advanced-section{padding:65px 23px}}
       .site-notice{padding:12px 24px;background:#21483b;color:#fffdf8;text-align:center;font-size:14px;font-weight:600}.site-notice p{margin:0}.quick-lock{margin-top:18px}.quote-calculator{padding:13px 14px;border:1px solid #cbd9c8;background:#f2f7ef;display:grid;align-content:center;gap:2px;min-height:100%}.quote-calculator span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#527260}.quote-calculator strong{font:600 19px Fraunces,serif;color:#21483b}.quote-calculator small{font-size:11px;color:#5f746b}
+      .availability-chip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:7px 10px;background:#e5efe1;color:#315a3f;font-size:12px;font-weight:700}.availability-chip:before{content:'●';color:#5a9c60;font-size:10px}.business-hours{margin-top:9px!important;font-size:13px;font-weight:700;color:#557065!important}.quote-security-check{margin:0;padding:11px 12px;border:1px dashed #bed0bd;background:#f6faf3;color:#456353;font-size:12px}.quote-security-check strong{color:#21483b}body[data-theme="warm"]{--forest:#694a35;--green:#a66948;--sage:#eee1d5;--line:#e4d5c5}body[data-theme="clean"]{--forest:#173b5b;--green:#287b9b;--sage:#dbeaf0;--line:#cddde4}
     </style>
   </head>
   <body>
@@ -57,6 +61,7 @@
             <div class="rating-leaves">✦ ✦ ✦</div>
             <p><strong>Quality work, guaranteed</strong><br />Friendly service from people you can count on.</p>
           </div>
+          <p class="availability-chip" data-field="availabilityText">Now booking new projects</p>
         </div>
         <div class="hero-visual" aria-hidden="true">
           <div class="sun"></div>
@@ -142,6 +147,7 @@
           <p data-field="contactText">Tell Brandon and Elena what you need. We’ll get back to you with an affordable, no-pressure quote.</p>
           <p class="location">⌖ Proudly serving <span data-field="location">Columbia, South Carolina</span></p>
           <p class="contact-phone">Call or text: <a data-phone-link href="tel:+12522662160">(252) 266-2160</a></p>
+          <p class="business-hours">Hours: <span data-field="businessHours">Mon–Sat, 8 AM–6 PM</span></p>
         </div>
         <form class="quote-form" id="quoteForm" method="POST">
           <div class="form-row"><label>Your name<input required name="customerName" type="text" maxlength="80" autocomplete="name" placeholder="Jane Smith" /></label><label>Phone number<input required name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" pattern="[0-9()+.\-\s]{7,}" maxlength="30" placeholder="(252) 266-2160" /></label></div>
@@ -153,8 +159,9 @@
           <label>Service address or neighborhood <small>(optional)</small><input name="serviceArea" type="text" maxlength="160" autocomplete="street-address" placeholder="123 Main St. or Columbia neighborhood" /></label>
           <label>Tell us about the job<textarea required name="details" rows="4" maxlength="1000" minlength="10" placeholder="Example: 3 bedrooms, 2 bathrooms, and a deep clean before move-in."></textarea></label>
           <label class="honeypot" aria-hidden="true">Leave this blank<input name="companyWebsite" tabindex="-1" autocomplete="off" /></label>
-          <label class="form-check"><input required name="contactConsent" type="checkbox" /> I agree that B & E Home Services may contact me about this quote request.</label>
-          <button class="button" type="submit">Request my free quote <span>→</span></button>
+          <div class="quote-security-check"><strong id="humanPrompt">Quick safety check</strong><label>Answer<input required id="humanAnswer" name="humanAnswer" type="number" inputmode="numeric" min="0" max="30" placeholder="Number" /></label></div>
+          <label class="form-check"><input required name="contactConsent" type="checkbox" /> <span data-field="consentText">I agree that B & E Home Services may contact me about this quote request.</span></label>
+          <button class="button" type="submit"><span data-field="quoteButtonText">Request my free quote</span> <span>→</span></button>
           <p class="booking-note">A requested date is not confirmed until B & E contacts you.</p><p class="form-note" aria-live="polite">No pressure. A detailed request helps us send a more accurate quote.</p><p class="form-note" id="quotePauseMessage" hidden aria-live="polite"></p>
         </form>
       </section>
@@ -169,6 +176,7 @@
           <fieldset class="admin-panel full"><legend>Live website status</legend><p>Post a short message at the top of the website or pause new quote requests when you are fully booked.</p><div class="admin-grid"><label class="full"><input name="announcementEnabled" type="checkbox" /> Show a website notice</label><label class="full">Notice message<textarea name="announcementText" rows="2" maxlength="180">We are currently booking new projects.</textarea></label><label class="full"><input name="quoteEnabled" type="checkbox" checked /> Accept new quote requests</label><label class="full">Paused quote message<textarea name="quotePauseMessage" rows="2" maxlength="180">We are not accepting new quote requests right now. Please check back soon.</textarea></label></div></fieldset>
           <fieldset class="admin-panel full"><legend>Website visits</legend><p>Visitor tracking is connected. See visits, popular pages, and visitor activity in the B & E Home Services Google Analytics dashboard.</p><label>Google Analytics Measurement ID <input name="analyticsId" value="G-950R6WG3C3" readonly /></label><small>Tracking begins as visitors use the live website. Data can take up to 24 hours to appear in Google Analytics.</small></fieldset>
           <fieldset class="admin-panel full"><legend>Admin lock &amp; security</legend><p>Owner changes require both the PIN screen and the approved Google owner account. Choose how quickly this admin page locks after inactivity.</p><div class="admin-grid"><label>Auto-lock after<select name="lockMinutes"><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="30">30 minutes</option></select></label><label class="full"><input name="signOutOnLock" type="checkbox" checked /> Sign out of the owner Google account when locking</label></div><small>The PIN is a local first step. The Google owner sign-in is what protects shared controls and saved website changes.</small></fieldset>
+          <fieldset class="admin-panel full"><legend>Customer experience</legend><p>Control the message customers see before they request a quote.</p><div class="admin-grid"><label>Site color style<select name="siteTheme"><option value="forest">Forest green</option><option value="warm">Warm earth</option><option value="clean">Clean blue</option></select></label><label>Availability label<input name="availabilityText" maxlength="70" value="Now booking new projects" /></label><label>Business hours<input name="businessHours" maxlength="80" value="Mon–Sat, 8 AM–6 PM" /></label><label>Quote button wording<input name="quoteButtonText" maxlength="45" value="Request my free quote" /></label><label class="full">Consent wording<textarea name="consentText" rows="2" maxlength="220">I agree that B &amp; E Home Services may contact me about this quote request.</textarea></label></div><small>Changes are published when you select “Save page changes.”</small></fieldset>
           <label>Business name<input name="businessName" value="Home Services" /></label>
           <label>Service area<input name="location" value="Columbia, South Carolina" /></label>
           <label>Business phone<input name="phoneNumber" type="tel" value="(252) 266-2160" /></label>
@@ -205,6 +213,6 @@ And more</textarea></label>
         <form id="loginForm"><label>Owner PIN<input id="adminPassword" required type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Enter PIN" /></label><button class="button" type="submit">Unlock controls <span>→</span></button><p class="login-status" aria-live="polite"></p></form>
       </div>
     </div>
-    <script type="module" src="script.js?v=20260906-14"></script>
+    <script type="module" src="script.js?v=20260906-15"></script>
   </body>
 </html>
