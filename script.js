@@ -600,15 +600,18 @@ async function finishOwnerGoogleSignIn() {
   try {
     const result = await getRedirectResult(auth);
     if (!result) return;
-    const signInWasRequested = sessionStorage.getItem(ownerSignInPendingKey) === 'true';
     sessionStorage.removeItem(ownerSignInPendingKey);
-    if (!signInWasRequested || result.user.email !== ownerEmail) {
+    if (result.user.email !== ownerEmail) {
       await signOut(auth);
+      loginModal.hidden = false;
+      document.querySelector('.login-status').textContent = 'Please sign in with the approved owner Google account.';
       return;
     }
     unlockAdminControls();
   } catch {
     sessionStorage.removeItem(ownerSignInPendingKey);
+    loginModal.hidden = false;
+    document.querySelector('.login-status').textContent = 'Google sign-in did not finish. Please try again.';
   }
 }
 
