@@ -35,6 +35,17 @@ function valuesFrom(form) {
   return values;
 }
 
+function trackAnalytics(eventName, parameters = {}) {
+  if (typeof window.gtag === 'function') window.gtag('event', eventName, parameters);
+}
+
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[href]');
+  if (!link) return;
+  if (link.href.startsWith('tel:')) trackAnalytics('click_to_call', { link_text: link.textContent.trim() || 'Call B & E' });
+  if (link.href.startsWith('sms:')) trackAnalytics('click_to_text', { link_text: link.textContent.trim() || 'Text B & E' });
+});
+
 function updatePage(values) {
   const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact' };
   Object.entries(sections).forEach(([setting, id]) => {
@@ -591,6 +602,7 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, '_template', 'table');
   setFormField(quoteForm, '_next', nextPage.href);
   quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
+  trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
   localStorage.setItem(quoteRateLimitKey, String(Date.now()));
   saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
   quoteForm.submit();
