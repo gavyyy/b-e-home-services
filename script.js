@@ -6,6 +6,8 @@ const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZ
 const auth = getAuth(firebaseApp);
 const database = getFirestore(firebaseApp);
 const settingsDocument = doc(database, 'siteSettings', 'main');
+// This is an account identifier, not a secret. The owner PIN is verified by
+// Firebase and is never kept in this website's files.
 const ownerEmail = 'owner@behomeservices.art';
 const storageKey = 'be-home-services-content';
 const adminForm = document.querySelector('#adminForm');
@@ -266,8 +268,10 @@ async function saveQuoteForOwner(quote, reference) {
       status: 'New',
       createdAt: Date.now()
     });
+    return true;
   } catch (error) {
-    // Email delivery still works if private quote storage has not been enabled yet.
+    // Email delivery can still work if private quote storage has not been enabled yet.
+    return false;
   }
 }
 
@@ -604,7 +608,10 @@ quoteForm.addEventListener('submit', async (event) => {
   quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
   trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
   localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-  saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
+  // Wait for the private record before navigating to the email service. Without
+  // this wait, a browser redirect can cancel the save and make the dashboard
+  // look as if a submitted quote disappeared.
+  await saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
   quoteForm.submit();
 });
 
@@ -653,7 +660,7 @@ loginForm.addEventListener('submit', async (event) => {
     if (result.user.email !== ownerEmail) throw new Error('Owner sign-in required');
     unlockAdminControls();
   } catch (error) {
-    loginStatus.textContent = 'That owner PIN did not work. Please try again.';
+    loginStatus.textContent = 'That owner PIN did not work. Make sure you are using the current six-digit PIN, then try again.';
     return;
   }
 });

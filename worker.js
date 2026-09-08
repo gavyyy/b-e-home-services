@@ -5,6 +5,8 @@ import { collection, getDocs, getFirestore, orderBy, query, updateDoc } from 'ht
 const app = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(app);
 const database = getFirestore(app);
+// Account name only. The worker PIN is checked by Firebase and is never
+// included in this page's source code.
 const workerAccount = 'brandon.gipson@behomeservices.workers';
 const form = document.querySelector('#workerLoginForm');
 const codeInput = document.querySelector('#workerCode');
