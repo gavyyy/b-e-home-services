@@ -1,6 +1,7 @@
 /* Compact, touch-friendly home page navigation. */
 .mobile-action-bar,.mobile-explore{display:none}
 .mobile-more-nav{display:none}.content-disclosure summary,.quote-details summary{cursor:pointer;list-style:none}.content-disclosure summary::-webkit-details-marker,.quote-details summary::-webkit-details-marker{display:none}
+.quote-language{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding:10px 12px;border:1px solid #cbd9c8;background:#fffdf8;color:#315343;font-size:13px;font-weight:700}.quote-language button{border:1px solid #4f7757;background:#eff6eb;color:#21483b;padding:8px 11px;font:700 13px 'DM Sans',sans-serif;cursor:pointer}
 .content-disclosure>summary{display:flex;flex-direction:column;gap:3px;padding:17px 18px;border:1px solid #c5d7c4;background:#fffdf8;color:#21483b}.content-disclosure>summary span{font:600 24px Fraunces,serif}.content-disclosure>summary small{color:#60776b;font-size:13px}.content-disclosure>summary:after,.quote-details>summary:after{content:'+';float:right;color:#477c51;font-size:22px;line-height:.8}.content-disclosure[open]>summary:after,.quote-details[open]>summary:after{content:'–'}.disclosure-content{padding-top:20px}
 .brand-mark{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;letter-spacing:-.12em;padding:0 2px}.brand-mark span{display:inline;margin:0 1px;font-size:.8em}
 @media(max-width:700px){

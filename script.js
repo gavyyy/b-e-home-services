@@ -233,6 +233,49 @@ function setResponsiveDetails() {
 setResponsiveDetails();
 window.addEventListener('resize', setResponsiveDetails);
 
+const quoteLanguageToggle = document.querySelector('#quoteLanguageToggle');
+const quoteLanguageLabel = document.querySelector('#quoteLanguageLabel');
+let quoteLanguage = 'en';
+const labelText = new Map();
+const translatedLabels = {
+  customerName: 'Nombre completo', customerPhone: 'Número de teléfono', customerEmail: 'Correo electrónico', service: 'Servicio que necesita', propertyType: 'Tipo de propiedad (opcional)', projectSize: 'Tamaño del proyecto para estimado', contactMethod: 'Forma preferida de contacto', preferredTime: 'Mejor día / hora', serviceFrequency: 'Frecuencia del servicio', referralSource: 'Código o nombre de referencia (opcional)', bookingDate: 'Fecha preferida para el servicio (opcional)', bookingWindow: 'Horario preferido de llegada', serviceArea: 'Dirección o vecindario del servicio (opcional)', details: 'Cuéntenos sobre el trabajo', attachment: 'Fotos del trabajo (opcional — máximo 10 MB)'
+};
+const translatedOptions = { service: ['Seleccione un servicio', 'Cuidado de césped y paisajismo', 'Recorte de setos', 'Poda de árboles', 'Mantillo', 'Lavado a presión', 'Limpieza residencial', 'Limpieza comercial', 'Limpieza profunda', 'Limpieza básica del hogar', 'Otra cosa'], propertyType: ['Seleccione uno', 'Casa', 'Apartamento / condominio', 'Negocio', 'Alquiler / mudanza', 'Otro'], projectSize: ['Seleccione un tamaño', 'Pequeño', 'Mediano', 'Grande'], contactMethod: ['Llamada', 'Texto', 'Correo electrónico'], serviceFrequency: ['Servicio único', 'Semanal', 'Cada dos semanas', 'Mensual'], bookingWindow: ['Sin preferencia', 'Mañana', 'Tarde', 'Noche'] };
+function setFirstLabelText(fieldName, text) {
+  const field = quoteForm.elements.namedItem(fieldName);
+  const label = field?.closest('label');
+  const textNode = [...(label?.childNodes || [])].find((node) => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+  if (!textNode) return;
+  if (!labelText.has(fieldName)) labelText.set(fieldName, textNode.nodeValue);
+  textNode.nodeValue = ` ${text}`;
+}
+function setQuoteLanguage(language) {
+  quoteLanguage = language;
+  const spanish = language === 'es';
+  quoteForm.lang = spanish ? 'es' : 'en';
+  Object.entries(translatedLabels).forEach(([field, spanishText]) => setFirstLabelText(field, spanish ? spanishText : labelText.get(field) || ''));
+  Object.entries(translatedOptions).forEach(([fieldName, spanishOptions]) => {
+    const options = quoteForm.elements.namedItem(fieldName)?.options;
+    if (!options) return;
+    [...options].forEach((option, index) => {
+      if (!option.dataset.english) option.dataset.english = option.textContent;
+      if (!option.dataset.value) option.dataset.value = option.value;
+      option.textContent = spanish ? (spanishOptions[index] || option.dataset.english) : option.dataset.english;
+      option.value = option.dataset.value;
+    });
+  });
+  document.querySelector('.quote-details summary').childNodes[0].nodeValue = spanish ? 'Agregar horario, propiedad y detalles de precio ' : 'Add scheduling, property, and price details ';
+  document.querySelectorAll('.quote-details summary')[1].childNodes[0].nodeValue = spanish ? 'Agregar fotos del trabajo ' : 'Add job photos ';
+  document.querySelector('.booking-request strong').textContent = spanish ? 'Elija la fecha y hora que prefiera.' : 'Choose your preferred date and time.';
+  document.querySelector('.booking-request small').textContent = spanish ? 'B & E confirmará la disponibilidad antes de programar el trabajo.' : 'B & E will confirm availability before your job is booked.';
+  document.querySelector('.quote-form .button [data-field="quoteButtonText"]').textContent = spanish ? 'Solicitar mi cotización gratis' : (savedValues.quoteButtonText || 'Request my free quote');
+  quoteLanguageLabel.textContent = spanish ? 'Idioma del formulario' : 'Quote form language';
+  quoteLanguageToggle.textContent = spanish ? 'English' : 'Español';
+  localStorage.setItem('be-quote-language', language);
+}
+quoteLanguageToggle.addEventListener('click', () => setQuoteLanguage(quoteLanguage === 'en' ? 'es' : 'en'));
+if (localStorage.getItem('be-quote-language') === 'es') setQuoteLanguage('es');
+
 document.querySelector('#resetChanges').addEventListener('click', () => {
   localStorage.removeItem(storageKey);
   window.location.reload();
