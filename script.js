@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -26,6 +26,7 @@ const customerPortalStatus = document.querySelector('#customerPortalStatus');
 const customerQuoteList = document.querySelector('#customerQuoteList');
 let adminLockTimer;
 let savedValues = {};
+let quoteTrackingUnsubscribe;
 quoteForm.dataset.openedAt = String(Date.now());
 
 // Always begin a fresh visit at the top instead of restoring a previous scroll position.
@@ -283,6 +284,10 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 
 function lockAdmin() {
   clearTimeout(adminLockTimer);
+  if (quoteTrackingUnsubscribe) {
+    quoteTrackingUnsubscribe();
+    quoteTrackingUnsubscribe = undefined;
+  }
   adminSection.hidden = true;
   if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
@@ -352,11 +357,11 @@ async function saveQuoteForOwner(quote, reference) {
   }
 }
 
-async function loadQuoteInbox() {
+function loadQuoteInbox() {
   if (!auth.currentUser || auth.currentUser.email !== ownerEmail) return;
   quoteList.innerHTML = '<p class="quote-empty">Loading quote requests…</p>';
-  try {
-    const results = await getDocs(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)));
+  if (quoteTrackingUnsubscribe) quoteTrackingUnsubscribe();
+  quoteTrackingUnsubscribe = onSnapshot(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)), (results) => {
     renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
     if (results.empty) {
       quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
@@ -450,9 +455,9 @@ async function loadQuoteInbox() {
       item.append(title, info, details, status, estimateAmount, estimateNotes, actions);
       return item;
     }));
-  } catch (error) {
+  }, () => {
     quoteList.innerHTML = '<p class="quote-empty">Private quote tracking is not enabled yet.</p>';
-  }
+  });
 }
 
 function renderOwnerDashboard(quotes) {
