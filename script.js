@@ -1,10 +1,12 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(firebaseApp);
 const database = getFirestore(firebaseApp);
+const storage = getStorage(firebaseApp);
 const settingsDocument = doc(database, 'siteSettings', 'main');
 // This is an account identifier, not a secret. The owner PIN is verified by
 // Firebase and is never kept in this website's files.
@@ -49,7 +51,7 @@ document.addEventListener('click', (event) => {
 });
 
 function updatePage(values) {
-  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact' };
+  const sections = { showHero: 'heroSection', showTrust: 'why-us', showServices: 'services', showPromise: 'promiseSection', showPrices: 'priceSection', showGallery: 'gallerySection', showOffers: 'offersSection', showReviews: 'reviewsSection', showCustomerPortal: 'customerPortal', showContact: 'contact', showHeaderPhone: 'headerPhone', showQuickContact: 'quickContact' };
   Object.entries(sections).forEach(([setting, id]) => {
     if (typeof values[setting] === 'boolean') document.querySelector(`#${id}`).hidden = !values[setting];
   });
@@ -336,6 +338,21 @@ async function loadQuoteInbox() {
       estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
       actions.append(saveEstimate, requestPdf, estimatePdf);
+      const phoneDigits = String(quote.customerPhone || '').replace(/\D/g, '');
+      if (phoneDigits.length >= 7) {
+        const customerFirstName = String(quote.customerName || 'there').trim().split(/\s+/)[0] || 'there';
+        const addTextButton = (label, message) => {
+          const text = document.createElement('a');
+          text.className = 'reset-button';
+          text.href = `sms:${phoneDigits}?body=${encodeURIComponent(message)}`;
+          text.textContent = label;
+          text.addEventListener('click', () => trackAnalytics('job_status_text_started', { status_label: label }));
+          actions.append(text);
+        };
+        addTextButton('Text: on our way', `Hi ${customerFirstName}, this is B & E Home Services. We are on our way for your ${quote.service || 'scheduled service'}. Thank you!`);
+        addTextButton('Text: job complete', `Hi ${customerFirstName}, B & E Home Services has completed your ${quote.service || 'service'}. Thank you for choosing us! Please let us know if there is anything else we can help with.`);
+        addTextButton('Text: review request', `Hi ${customerFirstName}, thank you for choosing B & E Home Services. We would appreciate your feedback on your completed ${quote.service || 'service'}.`);
+      }
       if (quote.status === 'Completed') {
         const deleteProject = document.createElement('button');
         deleteProject.type = 'button';
@@ -462,6 +479,36 @@ document.querySelector('#sendTestQuote').addEventListener('click', async () => {
     status.textContent = 'Test sent. Check the quote inbox, including spam, in a few minutes.';
   } catch (error) {
     status.textContent = 'The test could not be sent yet. Make sure FormSubmit has been activated for this inbox, then try again.';
+  }
+});
+
+document.querySelector('#uploadGalleryPhoto').addEventListener('click', async () => {
+  const status = document.querySelector('#galleryUploadStatus');
+  const file = document.querySelector('#galleryUpload').files[0];
+  const caption = document.querySelector('#galleryUploadCaption').value.trim();
+  let slot = document.querySelector('#galleryUploadSlot').value;
+  if (!auth.currentUser || auth.currentUser.email !== ownerEmail) return;
+  if (!file) {
+    status.textContent = 'Choose a photo first.';
+    return;
+  }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    status.textContent = 'Use a JPG, PNG, or WebP photo smaller than 10 MB.';
+    return;
+  }
+  if (slot === 'auto') slot = ['One', 'Two', 'Three'].find((number) => !adminForm.elements.namedItem(`gallery${number}Image`).value) || 'Three';
+  status.textContent = 'Uploading photo…';
+  const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '-').slice(-80);
+  try {
+    const uploadRef = ref(storage, `gallery/${Date.now()}-${safeName}`);
+    await uploadBytes(uploadRef, file, { contentType: file.type });
+    const imageUrl = await getDownloadURL(uploadRef);
+    adminForm.elements.namedItem(`gallery${slot}Image`).value = imageUrl;
+    if (caption) adminForm.elements.namedItem(`gallery${slot}Caption`).value = caption;
+    updatePage(valuesFrom(adminForm));
+    status.textContent = `Uploaded to gallery slot ${slot}. Select “Save page changes” to publish it.`;
+  } catch (error) {
+    status.textContent = 'Upload is not ready yet. Sign in with the Firebase project owner account, then try again.';
   }
 });
 
