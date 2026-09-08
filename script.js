@@ -959,6 +959,7 @@ function unlockAdminControls() {
 }
 
 document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
+document.querySelector('#maintenanceOwnerLogin').addEventListener('click', openAdminLogin);
 
 if (new URLSearchParams(window.location.search).get('admin') === 'true') {
   openAdminLogin();
