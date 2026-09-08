@@ -82,8 +82,10 @@ function updatePage(values) {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
   if (typeof values.maintenanceEnabled === 'boolean') {
-    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled;
+    const ownerRecovery = new URLSearchParams(window.location.search).get('admin') === 'true';
+    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled || ownerRecovery;
     document.body.classList.toggle('maintenance-active', values.maintenanceEnabled);
+    document.body.classList.toggle('maintenance-owner', values.maintenanceEnabled && ownerRecovery);
   }
   if (typeof values.weatherEnabled === 'boolean') document.querySelector('#weatherSection').hidden = !values.weatherEnabled;
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
@@ -238,11 +240,18 @@ async function publishQuickCommand(command) {
   if (command === 'maintenance-on') {
     field('maintenanceEnabled').checked = true;
     field('quoteEnabled').checked = false;
+    const maintenanceUrl = new URL(window.location.href);
+    maintenanceUrl.searchParams.set('admin', 'true');
+    history.replaceState({}, '', maintenanceUrl);
   } else if (command === 'maintenance-off') {
     field('maintenanceEnabled').checked = false;
     field('quoteEnabled').checked = true;
     document.querySelector('#maintenanceScreen').hidden = true;
     document.body.classList.remove('maintenance-active');
+    document.body.classList.remove('maintenance-owner');
+    const publicUrl = new URL(window.location.href);
+    publicUrl.searchParams.delete('admin');
+    history.replaceState({}, '', publicUrl);
   } else if (command === 'pause') {
     field('quoteEnabled').checked = false;
     field('announcementEnabled').checked = true;
