@@ -19,6 +19,7 @@ const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
+const quoteDuplicateKey = 'be-home-services-recent-quote';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
 const jobPdfArchive = document.querySelector('#jobPdfArchive');
@@ -858,6 +859,11 @@ quoteForm.addEventListener('submit', async (event) => {
   const linkCount = (quote.details.match(/https?:\/\//gi) || []).length;
   const lastRequest = Number(localStorage.getItem(quoteRateLimitKey) || 0);
   const attachments = Array.from(quoteForm.elements.namedItem('attachment').files || []);
+  const normalizedEmail = String(quote.customerEmail || '').trim().toLowerCase();
+  const normalizedPhone = String(quote.customerPhone || '').replace(/\D/g, '');
+  const textForScreening = `${quote.customerName || ''} ${quote.details || ''}`.toLowerCase();
+  const spamTerms = /\b(crypto|bitcoin|forex|casino|backlink|guest post|seo service|telegram|whatsapp|investment opportunity|viagra)\b/i;
+  const recentQuote = JSON.parse(localStorage.getItem(quoteDuplicateKey) || 'null');
   if (quoteForm.dataset.acceptingQuotes === 'false') {
     note.textContent = document.querySelector('#quotePauseMessage').textContent;
     return;
@@ -871,6 +877,14 @@ quoteForm.addEventListener('submit', async (event) => {
   const cooldownMs = Number(settings.quoteCooldownMinutes || 1) * 60 * 1000;
   if (quote.companyWebsite || secondsOpen < minimumSeconds || linkCount > maximumLinks) {
     note.textContent = 'We could not submit that request. Please review the form and try again.';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedPhone.length < 10 || spamTerms.test(textForScreening)) {
+    note.textContent = 'We could not submit that request. Please use a valid email and phone number, then review the form and try again.';
+    return;
+  }
+  if (recentQuote && recentQuote.email === normalizedEmail && recentQuote.phone === normalizedPhone && Date.now() - recentQuote.time < 24 * 60 * 60 * 1000) {
+    note.textContent = 'We already received a recent request with these contact details. Please wait for B & E to reply.';
     return;
   }
   if (Date.now() - lastRequest < cooldownMs) {
@@ -907,10 +921,12 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, '_replyto', quote.customerEmail);
   setFormField(quoteForm, '_autoresponse', `Thank you for contacting B & E Home Services. We received your quote request. Your reference number is ${reference}. Your calculator starting estimate is ${calculator.label}. This is not a final quote; B & E will review the job details and contact you soon.\n\nIMPORTANT TERMS NOTICE: By submitting this request, you confirmed that you read and agreed to B & E Home Services’ Terms of Use, including the Property Condition, Damage, and Customer Responsibility section: https://behomeservices.art/terms.html\n\nYou are responsible for telling B & E about existing damage, fragile or loose items, hidden conditions, utilities, hazards, pets, and special care instructions, and for securing valuables and property that could be affected by the requested work. To the fullest extent permitted by law, B & E Home Services is not responsible for loss, damage, delays, or costs tied to pre-existing or hidden conditions, unsecured property, ordinary risks of the requested work, weather, third parties, or conditions outside our control. B & E works carefully to avoid damage and will review concerns reported as soon as possible. This notice does not waive any rights or responsibilities that cannot legally be waived.`);
   setFormField(quoteForm, '_template', 'table');
+  setFormField(quoteForm, '_captcha', 'true');
   setFormField(quoteForm, '_next', nextPage.href);
   quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
   trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
   localStorage.setItem(quoteRateLimitKey, String(Date.now()));
+  localStorage.setItem(quoteDuplicateKey, JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, time: Date.now() }));
   // Wait for the private record before navigating to the email service. Without
   // this wait, a browser redirect can cancel the save and make the dashboard
   // look as if a submitted quote disappeared.
