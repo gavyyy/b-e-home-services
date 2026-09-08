@@ -21,6 +21,7 @@ const adminSection = document.querySelector('#admin');
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
+const jobPdfArchive = document.querySelector('#jobPdfArchive');
 const customerLoginForm = document.querySelector('#customerLoginForm');
 const customerPortalStatus = document.querySelector('#customerPortalStatus');
 const customerQuoteList = document.querySelector('#customerQuoteList');
@@ -456,6 +457,7 @@ function loadQuoteInbox() {
     trackedQuotes = results.docs;
     renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
     renderCustomerSummary(results.docs);
+    renderJobPdfArchive(results.docs.map((quoteDoc) => quoteDoc.data()));
     if (results.empty) {
       quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
       return;
@@ -572,7 +574,25 @@ function loadQuoteInbox() {
     }));
   }, () => {
     quoteList.innerHTML = '<p class="quote-empty">Private quote tracking is not enabled yet.</p>';
+    jobPdfArchive.innerHTML = '<p class="quote-empty">Job PDFs are unavailable until private quote tracking is enabled.</p>';
   });
+}
+
+function renderJobPdfArchive(quotes) {
+  if (!quotes.length) {
+    jobPdfArchive.innerHTML = '<p class="quote-empty">No saved jobs or quote PDFs yet.</p>';
+    return;
+  }
+  jobPdfArchive.replaceChildren(...quotes.map((quote) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'job-pdf-button';
+    const reference = quote.reference || 'Job record';
+    button.textContent = `PDF · ${reference}`;
+    button.title = `${quote.customerName || 'Customer'} — ${quote.service || 'Service'}`;
+    button.addEventListener('click', () => downloadQuotePdf('B & E Home Services job record', quote));
+    return button;
+  }));
 }
 
 function renderOwnerDashboard(quotes) {
