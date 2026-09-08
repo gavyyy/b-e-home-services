@@ -226,6 +226,13 @@ accessibilityToggle.addEventListener('click', () => {
   accessibilityToggle.setAttribute('aria-expanded', String(!accessibilityPanel.hidden));
 });
 
+const responsiveDetails = document.querySelectorAll('.content-disclosure, .quote-details');
+function setResponsiveDetails() {
+  if (window.innerWidth > 700) responsiveDetails.forEach((panel) => { panel.open = true; });
+}
+setResponsiveDetails();
+window.addEventListener('resize', setResponsiveDetails);
+
 document.querySelector('#resetChanges').addEventListener('click', () => {
   localStorage.removeItem(storageKey);
   window.location.reload();
