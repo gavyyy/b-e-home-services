@@ -549,25 +549,24 @@ function loadQuoteInbox() {
         addTextButton('Text: job complete', personalize(savedValues.jobCompleteText, 'Hi {firstName}, B & E Home Services has completed your {service}. Thank you for choosing us! Please let us know if there is anything else we can help with.'));
         addTextButton('Thank customer + review link', personalize(savedValues.reviewRequestText, 'Hi {firstName}, thank you for choosing B & E Home Services for your {service}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? {reviewLink}'));
       }
-      if (quote.status === 'Completed') {
-        const deleteProject = document.createElement('button');
-        deleteProject.type = 'button';
-        deleteProject.textContent = 'Delete completed project';
-        deleteProject.addEventListener('click', async () => {
-          const confirmed = window.confirm(`Permanently delete completed project ${quote.reference || ''}? This cannot be undone.`);
-          if (!confirmed) return;
-          deleteProject.disabled = true;
-          deleteProject.textContent = 'Deleting…';
-          try {
-            await deleteDoc(quoteDoc.ref);
-            await loadQuoteInbox();
-          } catch (error) {
-            deleteProject.disabled = false;
-            deleteProject.textContent = 'Could not delete';
-          }
-        });
-        actions.append(deleteProject);
-      }
+      const deleteQuote = document.createElement('button');
+      deleteQuote.type = 'button';
+      deleteQuote.className = 'delete-quote-button';
+      deleteQuote.textContent = quote.status === 'Completed' ? 'Delete completed project' : 'Delete quote';
+      deleteQuote.addEventListener('click', async () => {
+        const confirmed = window.confirm(`Permanently delete ${quote.status === 'Completed' ? 'completed project' : 'quote'} ${quote.reference || ''}? This cannot be undone.`);
+        if (!confirmed) return;
+        deleteQuote.disabled = true;
+        deleteQuote.textContent = 'Deleting…';
+        try {
+          await deleteDoc(quoteDoc.ref);
+          await loadQuoteInbox();
+        } catch (error) {
+          deleteQuote.disabled = false;
+          deleteQuote.textContent = 'Could not delete';
+        }
+      });
+      actions.append(deleteQuote);
       item.append(title, info, details, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, actions);
       return item;
     }));
