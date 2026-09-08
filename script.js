@@ -82,10 +82,9 @@ function updatePage(values) {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
   if (typeof values.maintenanceEnabled === 'boolean') {
-    const ownerRecovery = new URLSearchParams(window.location.search).get('admin') === 'true';
-    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled || ownerRecovery;
+    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled;
     document.body.classList.toggle('maintenance-active', values.maintenanceEnabled);
-    document.body.classList.toggle('maintenance-owner', values.maintenanceEnabled && ownerRecovery);
+    if (!values.maintenanceEnabled) document.body.classList.remove('maintenance-owner');
   }
   if (typeof values.weatherEnabled === 'boolean') document.querySelector('#weatherSection').hidden = !values.weatherEnabled;
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
@@ -269,6 +268,12 @@ async function publishQuickCommand(command) {
   savedValues = { ...savedValues, ...values };
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
+  if (command === 'maintenance-on') {
+    // This person has already passed the owner PIN, so leave the controls
+    // available while visitors see the maintenance page.
+    document.querySelector('#maintenanceScreen').hidden = true;
+    document.body.classList.add('maintenance-owner');
+  }
   renderControlHealth(values);
   status.textContent = 'Publishing…';
   try {
@@ -943,6 +948,10 @@ function unlockAdminControls() {
   document.querySelector('.login-status').textContent = '';
   loginModal.hidden = true;
   adminSection.hidden = false;
+  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) {
+    document.querySelector('#maintenanceScreen').hidden = true;
+    document.body.classList.add('maintenance-owner');
+  }
   renderControlHealth();
   refreshAdminLock();
   loadQuoteInbox();
