@@ -1,2 +1,48 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=(), payment=()"><title>Team Access | B & E Home Services</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"></head><body><header class="site-header"><a class="brand" href="index.html"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name">Home Services<small>Columbia, South Carolina</small></span></a><a class="button button-small" href="index.html">Customer site</a></header><main class="subpage worker-page"><p class="eyebrow">Private team access</p><h1>Worker <em>job board.</em></h1><p class="subpage-lead">Use your personal keypad code to securely view assigned job requests, open locations in maps, and mark work complete.</p><section class="worker-panel"><form id="workerLoginForm" class="portal-card"><h2>Unlock job board</h2><input id="workerCode" name="password" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="6" readonly aria-label="Your 6-digit personal code" placeholder="• • • • • •"><p class="portal-status">Enter your personal 6-digit code. Your code is never displayed on this page.</p><div class="keypad" aria-label="Personal code keypad"><button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button><button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button><button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button><button type="button" class="keypad-clear" id="clearWorkerCode">Clear</button><button type="button" data-key="0">0</button><button type="button" class="keypad-clear" id="deleteWorkerCode">⌫</button></div><div class="portal-actions"><button class="button" type="submit">Open job board <span>→</span></button></div><p id="workerStatus" class="portal-status" aria-live="polite"></p></form><section id="workerJobs" class="worker-jobs"><p>Enter your code to view B &amp; E jobs.</p></section><button id="workerSignOut" class="reset-button" hidden>Lock job board</button></section></main><footer><a class="brand" href="index.html"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name">Home Services</span></a><p>Reliable help for home and yard in Columbia, SC.</p><div class="footer-meta"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div></footer><script type="module" src="worker.js?v=4"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=(), payment=()">
+  <title>Team Access | B & E Home Services</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name">Home Services<small>Columbia, South Carolina</small></span></a>
+    <a class="button button-small" href="index.html">Customer site</a>
+  </header>
+  <main class="subpage worker-page">
+    <p class="eyebrow">Private team access</p>
+    <h1>Worker <em>job board.</em></h1>
+    <p class="subpage-lead">Use your personal keypad code to see jobs, contact customers, get directions, and report completed work from any phone.</p>
+    <section class="worker-panel">
+      <form id="workerLoginForm" class="portal-card">
+        <h2>Unlock job board</h2>
+        <input id="workerCode" name="password" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="6" readonly aria-label="Your 6-digit personal code" placeholder="• • • • • •">
+        <p class="portal-status">Enter your personal 6-digit code. Your code is never displayed on this page.</p>
+        <div class="keypad" aria-label="Personal code keypad">
+          <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+          <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+          <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+          <button type="button" class="keypad-clear" id="clearWorkerCode">Clear</button><button type="button" data-key="0">0</button><button type="button" class="keypad-clear" id="deleteWorkerCode">⌫</button>
+        </div>
+        <div class="portal-actions"><button class="button" type="submit">Open job board <span>→</span></button></div>
+        <p id="workerStatus" class="portal-status" aria-live="polite"></p>
+      </form>
+      <section id="workerWorkspace" class="worker-workspace" hidden>
+        <div class="worker-toolbar"><div><p class="eyebrow">Today’s workload</p><p id="workerSummary" class="worker-summary">Loading jobs…</p></div><button id="refreshJobs" class="reset-button" type="button">Refresh jobs</button></div>
+        <div class="worker-tip"><strong>Quick team tools:</strong> call or text the customer, open the location in Maps, then mark the job complete when you are finished.</div>
+      </section>
+      <section id="workerJobs" class="worker-jobs"><p>Enter your code to view B &amp; E jobs.</p></section>
+      <button id="workerSignOut" class="reset-button" hidden>Lock job board</button>
+    </section>
+  </main>
+  <footer><a class="brand" href="index.html"><span class="brand-mark">B<span>&</span>E</span><span class="brand-name">Home Services</span></a><p>Reliable help for home and yard in Columbia, SC.</p><div class="footer-meta"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div></footer>
+  <script type="module" src="worker.js?v=5"></script>
+</body>
+</html>
