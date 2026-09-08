@@ -241,6 +241,8 @@ async function publishQuickCommand(command) {
   } else if (command === 'maintenance-off') {
     field('maintenanceEnabled').checked = false;
     field('quoteEnabled').checked = true;
+    document.querySelector('#maintenanceScreen').hidden = true;
+    document.body.classList.remove('maintenance-active');
   } else if (command === 'pause') {
     field('quoteEnabled').checked = false;
     field('announcementEnabled').checked = true;
@@ -386,6 +388,7 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 });
 
 function lockAdmin() {
+  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) return;
   clearTimeout(adminLockTimer);
   if (quoteTrackingUnsubscribe) {
     quoteTrackingUnsubscribe();
@@ -399,6 +402,7 @@ function lockAdmin() {
 
 function refreshAdminLock() {
   clearTimeout(adminLockTimer);
+  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) return;
   const lockMinutes = Number(adminForm.elements.namedItem('lockMinutes').value) || 15;
   adminLockTimer = window.setTimeout(lockAdmin, lockMinutes * 60 * 1000);
 }
@@ -412,7 +416,7 @@ document.querySelector('#quickLock').addEventListener('click', lockAdmin);
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && !adminSection.hidden && adminForm.elements.namedItem('lockOnHidden').checked) lockAdmin();
+  if (document.hidden && !adminSection.hidden && adminForm.elements.namedItem('lockOnHidden').checked && !adminForm.elements.namedItem('maintenanceEnabled')?.checked) lockAdmin();
 });
 
 function quoteReference() {
