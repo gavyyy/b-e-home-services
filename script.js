@@ -81,6 +81,10 @@ function updatePage(values) {
   if (typeof values.announcementEnabled === 'boolean') {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
+  if (typeof values.maintenanceEnabled === 'boolean') {
+    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled;
+    document.body.classList.toggle('maintenance-active', values.maintenanceEnabled);
+  }
   if (typeof values.weatherEnabled === 'boolean') document.querySelector('#weatherSection').hidden = !values.weatherEnabled;
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
   renderGoogleReviewLink(values);
@@ -177,6 +181,7 @@ function applySavedValues(saved) {
     }
   });
   updatePage(saved);
+  renderControlHealth(saved);
 }
 
 async function restoreSavedValues() {
@@ -188,6 +193,7 @@ async function restoreSavedValues() {
     }
   } catch (error) { /* Local backup is used while offline. */ }
   applySavedValues(JSON.parse(localStorage.getItem(storageKey) || 'null'));
+  renderControlHealth();
 }
 
 adminForm.addEventListener('submit', async (event) => {
@@ -203,6 +209,103 @@ adminForm.addEventListener('submit', async (event) => {
   } catch (error) {
     adminStatus.textContent = 'Saved on this device. Sign in with the owner Google account to publish everywhere.';
   }
+});
+
+function renderControlHealth(values = valuesFrom(adminForm)) {
+  const panel = document.querySelector('#controlHealth');
+  if (!panel) return;
+  const validInbox = /^\S+@\S+\.\S+$/.test(String(values.quoteEmail || ''));
+  const set = (name, text, className) => {
+    const item = panel.querySelector(`[data-health="${name}"]`);
+    if (!item) return;
+    item.textContent = text;
+    item.className = className;
+  };
+  set('website', values.maintenanceEnabled ? 'Temporarily unavailable' : 'Online', values.maintenanceEnabled ? 'is-warn' : 'is-good');
+  set('quotes', values.quoteEnabled ? 'Open for requests' : 'Paused', values.quoteEnabled ? 'is-good' : 'is-warn');
+  set('email', validInbox ? 'Ready' : 'Needs attention', validInbox ? 'is-good' : 'is-warn');
+  set('notice', values.weatherEnabled ? 'Weather notice live' : values.announcementEnabled ? 'Website notice live' : 'No active notice', values.weatherEnabled || values.announcementEnabled ? 'is-warn' : 'is-good');
+  set('lock', `${Number(values.lockMinutes || 15)} min auto-lock`, 'is-good');
+}
+
+async function publishQuickCommand(command) {
+  const status = document.querySelector('#operationsStatus');
+  if (!auth.currentUser || auth.currentUser.email !== ownerEmail) {
+    status.textContent = 'Unlock owner controls first.';
+    return;
+  }
+  const field = (name) => adminForm.elements.namedItem(name);
+  if (command === 'maintenance-on') {
+    field('maintenanceEnabled').checked = true;
+    field('quoteEnabled').checked = false;
+  } else if (command === 'maintenance-off') {
+    field('maintenanceEnabled').checked = false;
+    field('quoteEnabled').checked = true;
+  } else if (command === 'pause') {
+    field('quoteEnabled').checked = false;
+    field('announcementEnabled').checked = true;
+    field('announcementText').value = 'New quote requests are temporarily paused. Please check back soon.';
+  } else if (command === 'reopen') {
+    field('quoteEnabled').checked = true;
+    field('announcementEnabled').checked = false;
+  } else if (command === 'weather') {
+    field('weatherEnabled').checked = true;
+  } else if (command === 'clear') {
+    field('weatherEnabled').checked = false;
+    field('announcementEnabled').checked = false;
+  }
+  const values = valuesFrom(adminForm);
+  savedValues = { ...savedValues, ...values };
+  localStorage.setItem(storageKey, JSON.stringify(values));
+  updatePage(values);
+  renderControlHealth(values);
+  status.textContent = 'Publishing…';
+  try {
+    await setDoc(settingsDocument, values);
+    status.textContent = 'Website update is live.';
+  } catch (error) {
+    status.textContent = 'Could not publish. Check owner sign-in and try again.';
+  }
+}
+
+document.querySelector('#enableMaintenance').addEventListener('click', () => publishQuickCommand('maintenance-on'));
+document.querySelector('#disableMaintenance').addEventListener('click', () => publishQuickCommand('maintenance-off'));
+document.querySelector('#pauseLeads').addEventListener('click', () => publishQuickCommand('pause'));
+document.querySelector('#reopenLeads').addEventListener('click', () => publishQuickCommand('reopen'));
+document.querySelector('#activateWeatherNotice').addEventListener('click', () => publishQuickCommand('weather'));
+document.querySelector('#clearNotices').addEventListener('click', () => publishQuickCommand('clear'));
+document.querySelector('#previewQuoteForm').addEventListener('click', () => trackAnalytics('owner_preview_quote_form'));
+
+let trackedQuotes = [];
+function filteredTrackedQuotes(records) {
+  const queryText = String(document.querySelector('#customerSearch')?.value || '').trim().toLowerCase();
+  const selectedStatus = String(document.querySelector('#customerStatusFilter')?.value || 'All');
+  return records.filter((quoteDoc) => {
+    const quote = quoteDoc.data();
+    const searchable = [quote.reference, quote.customerName, quote.customerEmail, quote.customerPhone, quote.service, quote.serviceArea].join(' ').toLowerCase();
+    return (selectedStatus === 'All' || (quote.status || 'New') === selectedStatus) && (!queryText || searchable.includes(queryText));
+  });
+}
+
+function renderCustomerSummary(records) {
+  const summary = document.querySelector('#customerSummary');
+  if (!summary) return;
+  const customers = new Set(records.map((quoteDoc) => quoteDoc.data().customerEmail).filter(Boolean)).size;
+  const scheduled = records.filter((quoteDoc) => quoteDoc.data().status === 'Scheduled').length;
+  const followUps = records.filter((quoteDoc) => quoteDoc.data().nextFollowUp).length;
+  const newLeads = records.filter((quoteDoc) => (quoteDoc.data().status || 'New') === 'New').length;
+  summary.replaceChildren(...[['Customers', customers], ['New leads', newLeads], ['Scheduled', scheduled], ['Follow-ups set', followUps]].map(([label, value]) => {
+    const card = document.createElement('article');
+    const total = document.createElement('strong'); total.textContent = String(value);
+    const title = document.createElement('span'); title.textContent = label;
+    card.append(total, title);
+    return card;
+  }));
+}
+
+['customerSearch', 'customerStatusFilter'].forEach((id) => {
+  const input = document.querySelector(`#${id}`);
+  ['input', 'change'].forEach((eventName) => input.addEventListener(eventName, () => { if (trackedQuotes.length) loadQuoteInbox(); }));
 });
 
 quoteForm.elements.namedItem('service').addEventListener('change', updateQuoteEstimate);
@@ -289,7 +392,8 @@ function lockAdmin() {
     quoteTrackingUnsubscribe = undefined;
   }
   adminSection.hidden = true;
-  if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
+  // Maintenance mode keeps the owner's authenticated session available so the site can be reopened quickly.
+  if (adminForm.elements.namedItem('signOutOnLock').checked && !adminForm.elements.namedItem('maintenanceEnabled').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
 }
 
@@ -362,12 +466,19 @@ function loadQuoteInbox() {
   quoteList.innerHTML = '<p class="quote-empty">Loading quote requests…</p>';
   if (quoteTrackingUnsubscribe) quoteTrackingUnsubscribe();
   quoteTrackingUnsubscribe = onSnapshot(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)), (results) => {
+    trackedQuotes = results.docs;
     renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
+    renderCustomerSummary(results.docs);
     if (results.empty) {
       quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
       return;
     }
-    quoteList.replaceChildren(...results.docs.map((quoteDoc) => {
+    const visibleQuotes = filteredTrackedQuotes(results.docs);
+    if (!visibleQuotes.length) {
+      quoteList.innerHTML = '<p class="quote-empty">No customers match this tracking filter.</p>';
+      return;
+    }
+    quoteList.replaceChildren(...visibleQuotes.map((quoteDoc) => {
       const quote = quoteDoc.data();
       const item = document.createElement('article');
       item.className = 'quote-item';
@@ -397,6 +508,12 @@ function loadQuoteInbox() {
       estimateNotes.rows = 2;
       estimateNotes.placeholder = 'Estimate details, scope, or notes';
       estimateNotes.value = quote.estimateNotes || '';
+      const lastContact = document.createElement('input');
+      lastContact.placeholder = 'Last contact note (private)';
+      lastContact.value = quote.lastContact || '';
+      const nextFollowUp = document.createElement('input');
+      nextFollowUp.type = 'date';
+      nextFollowUp.value = quote.nextFollowUp || '';
       const actions = document.createElement('div');
       actions.className = 'quote-actions';
       const saveEstimate = document.createElement('button');
@@ -409,6 +526,16 @@ function loadQuoteInbox() {
           setTimeout(() => { saveEstimate.textContent = 'Save estimate'; }, 1500);
         } catch (error) { saveEstimate.textContent = 'Could not save'; }
       });
+      const saveTracking = document.createElement('button');
+      saveTracking.type = 'button';
+      saveTracking.textContent = 'Save customer tracking';
+      saveTracking.addEventListener('click', async () => {
+        try {
+          await updateDoc(quoteDoc.ref, { lastContact: lastContact.value.trim(), nextFollowUp: nextFollowUp.value || '' });
+          saveTracking.textContent = 'Tracking saved';
+          setTimeout(() => { saveTracking.textContent = 'Save customer tracking'; }, 1500);
+        } catch (error) { saveTracking.textContent = 'Could not save'; }
+      });
       const requestPdf = document.createElement('button');
       requestPdf.type = 'button';
       requestPdf.textContent = 'Download request + calculator PDF';
@@ -417,7 +544,7 @@ function loadQuoteInbox() {
       estimatePdf.type = 'button';
       estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
-      actions.append(saveEstimate, requestPdf, estimatePdf);
+      actions.append(saveEstimate, saveTracking, requestPdf, estimatePdf);
       const phoneDigits = String(quote.customerPhone || '').replace(/\D/g, '');
       if (phoneDigits.length >= 7) {
         const customerFirstName = String(quote.customerName || 'there').trim().split(/\s+/)[0] || 'there';
@@ -430,9 +557,10 @@ function loadQuoteInbox() {
           text.addEventListener('click', () => trackAnalytics('job_status_text_started', { status_label: label }));
           actions.append(text);
         };
-        addTextButton('Text: on our way', `Hi ${customerFirstName}, this is B & E Home Services. We are on our way for your ${quote.service || 'scheduled service'}. Thank you!`);
-        addTextButton('Text: job complete', `Hi ${customerFirstName}, B & E Home Services has completed your ${quote.service || 'service'}. Thank you for choosing us! Please let us know if there is anything else we can help with.`);
-        addTextButton('Thank customer + review link', `Hi ${customerFirstName}, thank you for choosing B & E Home Services for your ${quote.service || 'service'}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? ${reviewUrl}`);
+        const personalize = (template, fallback) => String(template || fallback).replaceAll('{firstName}', customerFirstName).replaceAll('{service}', quote.service || 'scheduled service').replaceAll('{reviewLink}', reviewUrl);
+        addTextButton('Text: on our way', personalize(savedValues.onOurWayText, 'Hi {firstName}, this is B & E Home Services. We are on our way for your {service}. Thank you!'));
+        addTextButton('Text: job complete', personalize(savedValues.jobCompleteText, 'Hi {firstName}, B & E Home Services has completed your {service}. Thank you for choosing us! Please let us know if there is anything else we can help with.'));
+        addTextButton('Thank customer + review link', personalize(savedValues.reviewRequestText, 'Hi {firstName}, thank you for choosing B & E Home Services for your {service}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? {reviewLink}'));
       }
       if (quote.status === 'Completed') {
         const deleteProject = document.createElement('button');
@@ -453,7 +581,7 @@ function loadQuoteInbox() {
         });
         actions.append(deleteProject);
       }
-      item.append(title, info, details, status, estimateAmount, estimateNotes, actions);
+      item.append(title, info, details, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, actions);
       return item;
     }));
   }, () => {
@@ -802,6 +930,7 @@ function unlockAdminControls() {
   document.querySelector('.login-status').textContent = '';
   loginModal.hidden = true;
   adminSection.hidden = false;
+  renderControlHealth();
   refreshAdminLock();
   loadQuoteInbox();
   adminSection.scrollIntoView({ behavior: 'smooth' });
