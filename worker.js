@@ -56,12 +56,18 @@ async function loadJobs() {
       const phone = document.createElement('p'); phone.textContent = `Phone: ${job.customerPhone || 'Not provided'}`;
       const email = document.createElement('p'); email.textContent = `Email: ${job.customerEmail || 'Not provided'}`;
       const notes = document.createElement('p'); notes.textContent = job.details || 'No job notes provided.';
+      const checklist = document.createElement('fieldset'); checklist.className = 'worker-checklist';
+      const checklistTitle = document.createElement('legend'); checklistTitle.textContent = 'Job checklist'; checklist.append(checklistTitle);
+      const checklistValues = job.workerChecklist || {};
+      [['arrived', 'Arrived / customer updated'], ['beforeAfter', 'Before & after photos taken'], ['workFinished', 'Work completed and area checked']].forEach(([key, label]) => {
+        const row = document.createElement('label'); const check = document.createElement('input'); check.type = 'checkbox'; check.checked = Boolean(checklistValues[key]); check.addEventListener('change', async () => { try { checklistValues[key] = check.checked; await updateDoc(jobDoc.ref, { workerChecklist: checklistValues }); } catch { check.checked = !check.checked; status.textContent = 'Checklist could not be saved. Please try again.'; } }); row.append(check, document.createTextNode(label)); checklist.append(row);
+      });
       const actions = document.createElement('div'); actions.className = 'worker-actions';
       if (job.serviceArea) { const maps = document.createElement('a'); maps.className = 'reset-button'; maps.target = '_blank'; maps.rel = 'noopener'; maps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.serviceArea)}`; maps.textContent = 'Open in maps'; actions.append(maps); }
       if (job.customerPhone) { const phoneNumber = String(job.customerPhone).replace(/[^+\d]/g, ''); const call = document.createElement('a'); call.className = 'reset-button'; call.href = `tel:${phoneNumber}`; call.textContent = 'Call customer'; actions.append(call); const text = document.createElement('a'); text.className = 'reset-button'; text.href = `sms:${phoneNumber}`; text.textContent = 'Text customer'; actions.append(text); }
       const complete = document.createElement('button'); complete.className = 'button button-small'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Completed' : 'Mark completed'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { if (!window.confirm('Mark this job as completed?')) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Completed'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
-      actions.append(complete); card.append(title, details, location, phone, email, notes, actions); return card;
+      actions.append(complete); card.append(title, details, location, phone, email, notes, checklist, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }
 }

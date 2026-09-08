@@ -25,6 +25,7 @@ const customerLoginForm = document.querySelector('#customerLoginForm');
 const customerPortalStatus = document.querySelector('#customerPortalStatus');
 const customerQuoteList = document.querySelector('#customerQuoteList');
 let adminLockTimer;
+let savedValues = {};
 quoteForm.dataset.openedAt = String(Date.now());
 
 // Always begin a fresh visit at the top instead of restoring a previous scroll position.
@@ -79,6 +80,7 @@ function updatePage(values) {
   if (typeof values.announcementEnabled === 'boolean') {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
+  if (typeof values.weatherEnabled === 'boolean') document.querySelector('#weatherSection').hidden = !values.weatherEnabled;
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
   renderGoogleReviewLink(values);
   if (typeof values.quoteEnabled === 'boolean') {
@@ -164,6 +166,7 @@ function getQuoteEstimate() {
 
 function applySavedValues(saved) {
   if (!saved) return;
+  savedValues = { ...savedValues, ...saved };
   Object.entries(saved).forEach(([name, value]) => {
     const field = adminForm.elements.namedItem(name);
     if (field) {
@@ -189,6 +192,7 @@ async function restoreSavedValues() {
 adminForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const values = valuesFrom(adminForm);
+  savedValues = { ...savedValues, ...values };
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
   try {
@@ -202,6 +206,25 @@ adminForm.addEventListener('submit', async (event) => {
 
 quoteForm.elements.namedItem('service').addEventListener('change', updateQuoteEstimate);
 quoteForm.elements.namedItem('projectSize').addEventListener('change', updateQuoteEstimate);
+
+const accessibilityToggle = document.querySelector('#accessibilityToggle');
+const accessibilityPanel = document.querySelector('#accessibilityPanel');
+const accessibilityOptions = [['largeText', 'large-type'], ['highContrast', 'high-contrast'], ['reduceMotion', 'reduce-motion']];
+const savedAccessibility = JSON.parse(localStorage.getItem('be-accessibility-options') || '{}');
+accessibilityOptions.forEach(([inputId, className]) => {
+  const input = document.querySelector(`#${inputId}`);
+  input.checked = Boolean(savedAccessibility[inputId]);
+  document.body.classList.toggle(className, input.checked);
+  input.addEventListener('change', () => {
+    savedAccessibility[inputId] = input.checked;
+    document.body.classList.toggle(className, input.checked);
+    localStorage.setItem('be-accessibility-options', JSON.stringify(savedAccessibility));
+  });
+});
+accessibilityToggle.addEventListener('click', () => {
+  accessibilityPanel.hidden = !accessibilityPanel.hidden;
+  accessibilityToggle.setAttribute('aria-expanded', String(!accessibilityPanel.hidden));
+});
 
 document.querySelector('#resetChanges').addEventListener('click', () => {
   localStorage.removeItem(storageKey);
@@ -265,6 +288,8 @@ async function saveQuoteForOwner(quote, reference) {
       preferredTime: quote.preferredTime || '',
       bookingDate: quote.bookingDate || '',
       bookingWindow: quote.bookingWindow || '',
+      serviceFrequency: quote.serviceFrequency || 'One-time service',
+      referralSource: quote.referralSource || '',
       serviceArea: quote.serviceArea || '',
       details: quote.details,
       status: 'New',
@@ -532,9 +557,13 @@ async function loadCustomerQuotes() {
       status.textContent = `Status: ${quote.status || 'New'}`;
       const schedule = document.createElement('p');
       schedule.textContent = `Requested schedule: ${quote.bookingDate || 'Not selected'}${quote.bookingWindow ? ` · ${quote.bookingWindow}` : ''}`;
+      const frequency = document.createElement('p');
+      frequency.textContent = `Service frequency: ${quote.serviceFrequency || 'One-time service'}`;
       const estimate = document.createElement('p');
       estimate.textContent = `Starting estimate: ${quote.calculatorEstimate || 'Custom quote needed'}`;
-      item.append(heading, status, schedule, estimate);
+      item.append(heading, status, schedule, frequency, estimate);
+      const paymentUrl = String(savedValues.paymentUrl || '').trim();
+      if (/^https:\/\//i.test(paymentUrl) && quote.status === 'Estimate sent') { const pay = document.createElement('a'); pay.className = 'reset-button'; pay.href = paymentUrl; pay.target = '_blank'; pay.rel = 'noopener'; pay.textContent = 'Open secure payment page'; item.append(pay); }
       return item;
     }));
   } catch (error) {
@@ -679,6 +708,8 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, 'service_address_or_neighborhood', quote.serviceArea || 'Not provided');
   setFormField(quoteForm, 'requested_service_date', quote.bookingDate || 'Not requested');
   setFormField(quoteForm, 'requested_arrival_window', quote.bookingWindow || 'No preference');
+  setFormField(quoteForm, 'service_frequency', quote.serviceFrequency || 'One-time service');
+  setFormField(quoteForm, 'referral_source', quote.referralSource || 'Not provided');
   setFormField(quoteForm, 'message', quote.details || 'Not provided');
   setFormField(quoteForm, 'quote_reference', reference);
   setFormField(quoteForm, 'calculator_starting_estimate', calculator.label);
