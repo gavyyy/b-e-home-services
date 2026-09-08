@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { collection, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const app = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(app);
@@ -17,6 +17,15 @@ const workspace = document.querySelector('#workerWorkspace');
 const summary = document.querySelector('#workerSummary');
 const refreshButton = document.querySelector('#refreshJobs');
 let lockTimer;
+let reviewUrl = 'https://g.page/r/CRU8GnuRuE1GECE/review';
+
+async function loadReviewLink() {
+  try {
+    const settings = await getDoc(doc(database, 'siteSettings', 'main'));
+    const savedLink = String(settings.data()?.googleReviewUrl || '').trim();
+    if (/^https:\/\//i.test(savedLink)) reviewUrl = savedLink;
+  } catch { /* The current official review link remains available offline. */ }
+}
 
 function lockJobBoard(message = 'Job board locked.') {
   clearTimeout(lockTimer);
@@ -64,7 +73,13 @@ async function loadJobs() {
       });
       const actions = document.createElement('div'); actions.className = 'worker-actions';
       if (job.serviceArea) { const maps = document.createElement('a'); maps.className = 'reset-button'; maps.target = '_blank'; maps.rel = 'noopener'; maps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.serviceArea)}`; maps.textContent = 'Open in maps'; actions.append(maps); }
-      if (job.customerPhone) { const phoneNumber = String(job.customerPhone).replace(/[^+\d]/g, ''); const call = document.createElement('a'); call.className = 'reset-button'; call.href = `tel:${phoneNumber}`; call.textContent = 'Call customer'; actions.append(call); const text = document.createElement('a'); text.className = 'reset-button'; text.href = `sms:${phoneNumber}`; text.textContent = 'Text customer'; actions.append(text); }
+      if (job.customerPhone) {
+        const phoneNumber = String(job.customerPhone).replace(/[^+\d]/g, '');
+        const customerFirstName = String(job.customerName || 'there').trim().split(/\s+/)[0] || 'there';
+        const call = document.createElement('a'); call.className = 'reset-button'; call.href = `tel:${phoneNumber}`; call.textContent = 'Call customer'; actions.append(call);
+        const text = document.createElement('a'); text.className = 'reset-button'; text.href = `sms:${phoneNumber}`; text.textContent = 'Text customer'; actions.append(text);
+        const thankYou = document.createElement('a'); thankYou.className = 'reset-button'; thankYou.href = `sms:${phoneNumber}?body=${encodeURIComponent(`Hi ${customerFirstName}, thank you for choosing B & E Home Services for your ${job.service || 'service'}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? ${reviewUrl}`)}`; thankYou.textContent = 'Thank customer + review link'; actions.append(thankYou);
+      }
       const complete = document.createElement('button'); complete.className = 'button button-small'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Completed' : 'Mark completed'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { if (!window.confirm('Mark this job as completed?')) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Completed'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
       actions.append(complete); card.append(title, details, location, phone, email, notes, checklist, actions); return card;
@@ -82,6 +97,7 @@ form.addEventListener('submit', async (event) => {
     status.textContent = 'Signed in. Your jobs are below.';
     signOutButton.hidden = false;
     workspace.hidden = false;
+    await loadReviewLink();
     await loadJobs();
     refreshWorkerLock();
   } catch {

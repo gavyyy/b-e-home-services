@@ -421,6 +421,7 @@ function loadQuoteInbox() {
       const phoneDigits = String(quote.customerPhone || '').replace(/\D/g, '');
       if (phoneDigits.length >= 7) {
         const customerFirstName = String(quote.customerName || 'there').trim().split(/\s+/)[0] || 'there';
+        const reviewUrl = String(savedValues.googleReviewUrl || 'https://g.page/r/CRU8GnuRuE1GECE/review').trim();
         const addTextButton = (label, message) => {
           const text = document.createElement('a');
           text.className = 'reset-button';
@@ -431,7 +432,7 @@ function loadQuoteInbox() {
         };
         addTextButton('Text: on our way', `Hi ${customerFirstName}, this is B & E Home Services. We are on our way for your ${quote.service || 'scheduled service'}. Thank you!`);
         addTextButton('Text: job complete', `Hi ${customerFirstName}, B & E Home Services has completed your ${quote.service || 'service'}. Thank you for choosing us! Please let us know if there is anything else we can help with.`);
-        addTextButton('Text: review request', `Hi ${customerFirstName}, thank you for choosing B & E Home Services. We would appreciate your feedback on your completed ${quote.service || 'service'}.`);
+        addTextButton('Thank customer + review link', `Hi ${customerFirstName}, thank you for choosing B & E Home Services for your ${quote.service || 'service'}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? ${reviewUrl}`);
       }
       if (quote.status === 'Completed') {
         const deleteProject = document.createElement('button');
