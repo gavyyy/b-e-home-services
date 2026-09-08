@@ -10,7 +10,7 @@ const storage = getStorage(firebaseApp);
 const settingsDocument = doc(database, 'siteSettings', 'main');
 // This is an account identifier, not a secret. The owner PIN is verified by
 // Firebase and is never kept in this website's files.
-const ownerEmail = 'owner@behomeservices.art';
+const ownerEmail = 'professionalhomeservices@behomeservices.art';
 const storageKey = 'be-home-services-content';
 const adminForm = document.querySelector('#adminForm');
 const quoteForm = document.querySelector('#quoteForm');

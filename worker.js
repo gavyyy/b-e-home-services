@@ -7,7 +7,7 @@ const auth = getAuth(app);
 const database = getFirestore(app);
 // Account name only. The worker PIN is checked by Firebase and is never
 // included in this page's source code.
-const workerAccount = 'brandon.gipson@behomeservices.workers';
+const workerAccount = 'brandon@behomeservices.art';
 const form = document.querySelector('#workerLoginForm');
 const codeInput = document.querySelector('#workerCode');
 const status = document.querySelector('#workerStatus');
