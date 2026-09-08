@@ -81,11 +81,6 @@ function updatePage(values) {
   if (typeof values.announcementEnabled === 'boolean') {
     document.querySelector('#siteNotice').hidden = !values.announcementEnabled;
   }
-  if (typeof values.maintenanceEnabled === 'boolean') {
-    document.querySelector('#maintenanceScreen').hidden = !values.maintenanceEnabled;
-    document.body.classList.toggle('maintenance-active', values.maintenanceEnabled);
-    if (!values.maintenanceEnabled) document.body.classList.remove('maintenance-owner');
-  }
   if (typeof values.weatherEnabled === 'boolean') document.querySelector('#weatherSection').hidden = !values.weatherEnabled;
   if (values.siteTheme) document.body.dataset.theme = values.siteTheme;
   renderGoogleReviewLink(values);
@@ -222,7 +217,7 @@ function renderControlHealth(values = valuesFrom(adminForm)) {
     item.textContent = text;
     item.className = className;
   };
-  set('website', values.maintenanceEnabled ? 'Temporarily unavailable' : 'Online', values.maintenanceEnabled ? 'is-warn' : 'is-good');
+  set('website', 'Online', 'is-good');
   set('quotes', values.quoteEnabled ? 'Open for requests' : 'Paused', values.quoteEnabled ? 'is-good' : 'is-warn');
   set('email', validInbox ? 'Ready' : 'Needs attention', validInbox ? 'is-good' : 'is-warn');
   set('notice', values.weatherEnabled ? 'Weather notice live' : values.announcementEnabled ? 'Website notice live' : 'No active notice', values.weatherEnabled || values.announcementEnabled ? 'is-warn' : 'is-good');
@@ -236,22 +231,7 @@ async function publishQuickCommand(command) {
     return;
   }
   const field = (name) => adminForm.elements.namedItem(name);
-  if (command === 'maintenance-on') {
-    field('maintenanceEnabled').checked = true;
-    field('quoteEnabled').checked = false;
-    const maintenanceUrl = new URL(window.location.href);
-    maintenanceUrl.searchParams.set('admin', 'true');
-    history.replaceState({}, '', maintenanceUrl);
-  } else if (command === 'maintenance-off') {
-    field('maintenanceEnabled').checked = false;
-    field('quoteEnabled').checked = true;
-    document.querySelector('#maintenanceScreen').hidden = true;
-    document.body.classList.remove('maintenance-active');
-    document.body.classList.remove('maintenance-owner');
-    const publicUrl = new URL(window.location.href);
-    publicUrl.searchParams.delete('admin');
-    history.replaceState({}, '', publicUrl);
-  } else if (command === 'pause') {
+  if (command === 'pause') {
     field('quoteEnabled').checked = false;
     field('announcementEnabled').checked = true;
     field('announcementText').value = 'New quote requests are temporarily paused. Please check back soon.';
@@ -268,12 +248,6 @@ async function publishQuickCommand(command) {
   savedValues = { ...savedValues, ...values };
   localStorage.setItem(storageKey, JSON.stringify(values));
   updatePage(values);
-  if (command === 'maintenance-on') {
-    // This person has already passed the owner PIN, so leave the controls
-    // available while visitors see the maintenance page.
-    document.querySelector('#maintenanceScreen').hidden = true;
-    document.body.classList.add('maintenance-owner');
-  }
   renderControlHealth(values);
   status.textContent = 'Publishing…';
   try {
@@ -284,8 +258,6 @@ async function publishQuickCommand(command) {
   }
 }
 
-document.querySelector('#enableMaintenance').addEventListener('click', () => publishQuickCommand('maintenance-on'));
-document.querySelector('#disableMaintenance').addEventListener('click', () => publishQuickCommand('maintenance-off'));
 document.querySelector('#pauseLeads').addEventListener('click', () => publishQuickCommand('pause'));
 document.querySelector('#reopenLeads').addEventListener('click', () => publishQuickCommand('reopen'));
 document.querySelector('#activateWeatherNotice').addEventListener('click', () => publishQuickCommand('weather'));
@@ -402,21 +374,18 @@ document.querySelector('#resetChanges').addEventListener('click', () => {
 });
 
 function lockAdmin() {
-  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) return;
   clearTimeout(adminLockTimer);
   if (quoteTrackingUnsubscribe) {
     quoteTrackingUnsubscribe();
     quoteTrackingUnsubscribe = undefined;
   }
   adminSection.hidden = true;
-  // Maintenance mode keeps the owner's authenticated session available so the site can be reopened quickly.
-  if (adminForm.elements.namedItem('signOutOnLock').checked && !adminForm.elements.namedItem('maintenanceEnabled').checked) signOut(auth).catch(() => {});
+  if (adminForm.elements.namedItem('signOutOnLock').checked) signOut(auth).catch(() => {});
   adminStatus.textContent = '';
 }
 
 function refreshAdminLock() {
   clearTimeout(adminLockTimer);
-  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) return;
   const lockMinutes = Number(adminForm.elements.namedItem('lockMinutes').value) || 15;
   adminLockTimer = window.setTimeout(lockAdmin, lockMinutes * 60 * 1000);
 }
@@ -430,7 +399,7 @@ document.querySelector('#quickLock').addEventListener('click', lockAdmin);
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && !adminSection.hidden && adminForm.elements.namedItem('lockOnHidden').checked && !adminForm.elements.namedItem('maintenanceEnabled')?.checked) lockAdmin();
+  if (document.hidden && !adminSection.hidden && adminForm.elements.namedItem('lockOnHidden').checked) lockAdmin();
 });
 
 function quoteReference() {
@@ -948,10 +917,6 @@ function unlockAdminControls() {
   document.querySelector('.login-status').textContent = '';
   loginModal.hidden = true;
   adminSection.hidden = false;
-  if (adminForm.elements.namedItem('maintenanceEnabled')?.checked) {
-    document.querySelector('#maintenanceScreen').hidden = true;
-    document.body.classList.add('maintenance-owner');
-  }
   renderControlHealth();
   refreshAdminLock();
   loadQuoteInbox();
@@ -959,7 +924,6 @@ function unlockAdminControls() {
 }
 
 document.querySelector('#openAdmin').addEventListener('click', openAdminLogin);
-document.querySelector('#maintenanceOwnerLogin').addEventListener('click', openAdminLogin);
 
 if (new URLSearchParams(window.location.search).get('admin') === 'true') {
   openAdminLogin();
