@@ -88,10 +88,14 @@ function formatDuration(seconds = 0) {
 
 async function uploadJobImage(jobDoc, file, type) {
   if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Choose a JPG, PNG, or WebP image under 10 MB.');
-  const safeName = file.name.replace(/[^a-z0-9._-]/gi, '-').slice(-80);
+  const safeName = String(file.name || `${type}.png`).replace(/[^a-z0-9._-]/gi, '-').slice(-80);
   const target = ref(storage, `team-job-files/${jobDoc.id}/${type}-${Date.now()}-${safeName}`);
   await uploadBytes(target, file);
   return getDownloadURL(target);
+}
+
+function signatureBlob(canvas) {
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Signature could not be prepared.')), 'image/png'));
 }
 
 async function loadJobs() {
@@ -152,10 +156,18 @@ async function loadJobs() {
       uploadPhoto.addEventListener('click', async () => { uploadPhoto.disabled = true; try { const url = await uploadJobImage(jobDoc, photoFile.files[0], photoType.value); await updateDoc(jobDoc.ref, { jobPhotos: arrayUnion({ url, type: photoType.value, addedAt: Date.now() }) }); photoFile.value = ''; toolStatus.textContent = `${photoType.value === 'before' ? 'Before' : 'After'} photo saved for admin.`; } catch (error) { toolStatus.textContent = error.message || 'Photo could not be uploaded.'; } uploadPhoto.disabled = false; });
       photoRow.append(photoType, photoFile, uploadPhoto); toolkit.append(photoRow);
       const signatureRow = document.createElement('div'); signatureRow.className = 'worker-signature';
-      const signature = document.createElement('input'); signature.type = 'text'; signature.maxLength = 100; signature.placeholder = 'Customer signature / typed name'; signature.value = job.customerSignature?.name || ''; signature.setAttribute('aria-label', 'Customer signature or typed name');
+      const signature = document.createElement('input'); signature.type = 'text'; signature.maxLength = 100; signature.placeholder = 'Customer name'; signature.value = job.customerSignature?.name || ''; signature.setAttribute('aria-label', 'Customer name for signature');
+      const signaturePad = document.createElement('canvas'); signaturePad.className = 'signature-pad'; signaturePad.width = 700; signaturePad.height = 200; signaturePad.setAttribute('aria-label', 'Customer hand-drawn signature'); signaturePad.setAttribute('role', 'img');
+      const signatureContext = signaturePad.getContext('2d'); signatureContext.fillStyle = '#fffdf8'; signatureContext.fillRect(0, 0, signaturePad.width, signaturePad.height); signatureContext.strokeStyle = '#17392d'; signatureContext.lineWidth = 5; signatureContext.lineCap = 'round'; signatureContext.lineJoin = 'round';
+      let hasSignatureInk = false; let signing = false;
+      const signaturePoint = (event) => { const bounds = signaturePad.getBoundingClientRect(); return { x: (event.clientX - bounds.left) * signaturePad.width / bounds.width, y: (event.clientY - bounds.top) * signaturePad.height / bounds.height }; };
+      signaturePad.addEventListener('pointerdown', (event) => { signing = true; hasSignatureInk = true; signaturePad.setPointerCapture(event.pointerId); const point = signaturePoint(event); signatureContext.beginPath(); signatureContext.moveTo(point.x, point.y); });
+      signaturePad.addEventListener('pointermove', (event) => { if (!signing) return; const point = signaturePoint(event); signatureContext.lineTo(point.x, point.y); signatureContext.stroke(); });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => signaturePad.addEventListener(eventName, () => { signing = false; }));
+      const clearSignature = document.createElement('button'); clearSignature.type = 'button'; clearSignature.className = 'reset-button'; clearSignature.textContent = 'Clear signature'; clearSignature.addEventListener('click', () => { signatureContext.fillStyle = '#fffdf8'; signatureContext.fillRect(0, 0, signaturePad.width, signaturePad.height); hasSignatureInk = false; });
       const saveSignature = document.createElement('button'); saveSignature.type = 'button'; saveSignature.className = 'reset-button'; saveSignature.textContent = job.customerSignature?.name ? 'Update sign-off' : 'Save customer sign-off';
-      saveSignature.addEventListener('click', async () => { if (!signature.value.trim()) { toolStatus.textContent = 'Ask the customer to type their name first.'; return; } try { await updateDoc(jobDoc.ref, { customerSignature: { name: signature.value.trim(), signedAt: Date.now() } }); saveSignature.textContent = 'Sign-off saved'; toolStatus.textContent = 'Customer sign-off saved for admin.'; } catch { toolStatus.textContent = 'Customer sign-off could not be saved.'; } });
-      signatureRow.append(signature, saveSignature); toolkit.append(signatureRow);
+      saveSignature.addEventListener('click', async () => { if (!signature.value.trim() || !hasSignatureInk) { toolStatus.textContent = 'Enter the customer name and have them sign in the box.'; return; } saveSignature.disabled = true; try { const imageUrl = await uploadJobImage(jobDoc, await signatureBlob(signaturePad), 'customer-signature'); await updateDoc(jobDoc.ref, { customerSignature: { name: signature.value.trim(), imageUrl, signedAt: Date.now() } }); saveSignature.textContent = 'Sign-off saved'; toolStatus.textContent = 'Customer signature saved for admin and the PDF.'; } catch (error) { toolStatus.textContent = error.message || 'Customer signature could not be saved.'; } saveSignature.disabled = false; });
+      signatureRow.append(signature, signaturePad, clearSignature, saveSignature); toolkit.append(signatureRow);
       const issueRow = document.createElement('div'); issueRow.className = 'worker-issue';
       const issue = document.createElement('textarea'); issue.rows = 2; issue.maxLength = 600; issue.placeholder = 'Report an issue for the owner…';
       const issueFile = document.createElement('input'); issueFile.type = 'file'; issueFile.accept = 'image/jpeg,image/png,image/webp'; issueFile.setAttribute('aria-label', 'Optional issue photo');

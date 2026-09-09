@@ -162,16 +162,17 @@ function updateQuoteEstimate() {
 }
 
 function getQuoteEstimate() {
-  const service = valuesFrom(quoteForm).service.split(', ')[0] || '';
+  const selectedServices = valuesFrom(quoteForm).service.split(', ').filter(Boolean);
   const size = quoteForm.elements.namedItem('projectSize').value;
-  if (!service || !size) {
-    return { label: 'Choose a service and size', size, service };
+  if (!selectedServices.length || !size) {
+    return { label: 'Choose service(s) and size', size, service: selectedServices.join(', ') };
   }
   const outdoorServices = ['Lawn & landscaping', 'Hedge trimming', 'Tree trimming', 'Mulching', 'Pressure washing'];
-  const group = outdoorServices.includes(service) ? 'Outdoor' : 'Cleaning';
-  const field = `calc${group}${size}`;
-  const amount = Number(adminForm.elements.namedItem(field).value);
-  return { label: amount > 0 ? `From $${amount.toLocaleString()}` : 'Custom quote needed', size, service };
+  const amounts = selectedServices.map((service) => Number(adminForm.elements.namedItem(`calc${outdoorServices.includes(service) ? 'Outdoor' : 'Cleaning'}${size}`).value) || 0);
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  const everyServicePriced = amounts.every((amount) => amount > 0);
+  const label = !total ? 'Pre-quote: final pricing needed' : everyServicePriced ? `Pre-quote starting at $${total.toLocaleString()}` : `Pre-quote from $${total.toLocaleString()} + final pricing needed`;
+  return { label, size, service: selectedServices.join(', ') };
 }
 
 function applySavedValues(saved) {
@@ -503,6 +504,7 @@ function loadQuoteInbox() {
         const issueText = document.createElement('p'); issueText.textContent = `Issue ${index + 1}: ${issue.note || 'No note'}`; fieldMedia.append(issueText);
         if (issue.photoUrl) { const link = document.createElement('a'); link.href = issue.photoUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = `Issue ${index + 1} photo`; fieldMedia.append(link); }
       });
+      if (quote.customerSignature?.imageUrl) { const link = document.createElement('a'); link.href = quote.customerSignature.imageUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = 'View customer signature'; fieldMedia.append(link); }
       const status = document.createElement('select');
       ['New', 'Contacted', 'Scheduled', 'Estimate ready', 'Estimate sent', 'Completed', 'Closed'].forEach((option) => {
         const choice = document.createElement('option');
@@ -775,6 +777,7 @@ function downloadQuotePdf(title, quote) {
     quote.sharedNotes || 'No shared notes saved.',
     `Time tracked: ${timeTracked}`,
     `Customer sign-off: ${quote.customerSignature?.name || 'Not saved'}`,
+    `Signature image: ${quote.customerSignature?.imageUrl || 'Not saved'}`,
     '',
     'Before / after job photos:',
     ...photoLines,
@@ -1074,7 +1077,7 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, 'add_to_google_calendar', googleCalendarEventUrl({ ...quote, reference }) || 'No requested date was provided');
   setFormField(quoteForm, '_subject', `New B & E quote request ${reference} — ${quote.service}`);
   setFormField(quoteForm, '_replyto', quote.customerEmail);
-  setFormField(quoteForm, '_autoresponse', `Thank you for contacting B & E Home Services. We received your quote request. Your reference number is ${reference}. Your calculator starting estimate is ${calculator.label}. This is not a final quote; B & E will review the job details and contact you soon.\n\nIMPORTANT TERMS NOTICE: By submitting this request, you confirmed that you read and agreed to B & E Home Services’ Terms of Use, including the Property Condition, Damage, and Customer Responsibility section: https://behomeservices.art/terms.html\n\nYou are responsible for telling B & E about existing damage, fragile or loose items, hidden conditions, utilities, hazards, pets, and special care instructions, and for securing valuables and property that could be affected by the requested work. To the fullest extent permitted by law, B & E Home Services is not responsible for loss, damage, delays, or costs tied to pre-existing or hidden conditions, unsecured property, ordinary risks of the requested work, weather, third parties, or conditions outside our control. B & E works carefully to avoid damage and will review concerns reported as soon as possible. This notice does not waive any rights or responsibilities that cannot legally be waived.`);
+  setFormField(quoteForm, '_autoresponse', `Thank you for contacting B & E Home Services. We received your quote request. Your reference number is ${reference}. Your pre-quote estimate is ${calculator.label}. This is not a final price or final quote; B & E will review the job details and contact you to confirm the final price before work begins.\n\nIMPORTANT TERMS NOTICE: By submitting this request, you confirmed that you read and agreed to B & E Home Services’ Terms of Use, including the Property Condition, Damage, and Customer Responsibility section: https://behomeservices.art/terms.html\n\nYou are responsible for telling B & E about existing damage, fragile or loose items, hidden conditions, utilities, hazards, pets, and special care instructions, and for securing valuables and property that could be affected by the requested work. To the fullest extent permitted by law, B & E Home Services is not responsible for loss, damage, delays, or costs tied to pre-existing or hidden conditions, unsecured property, ordinary risks of the requested work, weather, third parties, or conditions outside our control. B & E works carefully to avoid damage and will review concerns reported as soon as possible. This notice does not waive any rights or responsibilities that cannot legally be waived.`);
   setFormField(quoteForm, '_template', 'table');
   setFormField(quoteForm, '_captcha', 'true');
   setFormField(quoteForm, '_next', nextPage.href);
