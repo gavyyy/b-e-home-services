@@ -18,6 +18,8 @@ const adminStatus = document.querySelector('.admin-status');
 const loginModal = document.querySelector('#loginModal');
 const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
+const quoteSuccessModal = document.querySelector('#quoteSuccessModal');
+const quoteSuccessReference = document.querySelector('#quoteSuccessReference');
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteDuplicateKey = 'be-home-services-recent-quote';
 const quoteEmailEndpoint = 'https://jolly-sunset-84d6.quotesend.workers.dev/';
@@ -60,6 +62,20 @@ document.addEventListener('click', (event) => {
   if (!link) return;
   if (link.href.startsWith('tel:')) trackAnalytics('click_to_call', { link_text: link.textContent.trim() || 'Call B & E' });
   if (link.href.startsWith('sms:')) trackAnalytics('click_to_text', { link_text: link.textContent.trim() || 'Text B & E' });
+});
+
+function showQuoteSuccess(reference) {
+  quoteSuccessReference.textContent = reference;
+  quoteSuccessModal.hidden = false;
+  document.querySelector('#closeQuoteSuccess').focus();
+}
+
+document.querySelector('#closeQuoteSuccess').addEventListener('click', () => {
+  quoteSuccessModal.hidden = true;
+});
+
+quoteSuccessModal.addEventListener('click', (event) => {
+  if (event.target === quoteSuccessModal) quoteSuccessModal.hidden = true;
 });
 
 function updatePage(values) {
@@ -1089,6 +1105,7 @@ quoteForm.addEventListener('submit', async (event) => {
     quoteForm.reset();
     updateQuoteEstimate();
     note.textContent = `Thanks! Your request was sent. A confirmation was emailed to you. Your reference is ${result.reference || reference}.`;
+    showQuoteSuccess(result.reference || reference);
   } catch (error) {
     console.error(error);
     note.textContent = 'Your quote was saved, but we could not send the email copies yet. Please call 252-266-2160 so B & E can confirm your request.';
