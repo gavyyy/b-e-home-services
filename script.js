@@ -521,7 +521,16 @@ function loadQuoteInbox() {
         const issueText = document.createElement('p'); issueText.textContent = `Issue ${index + 1}: ${issue.note || 'No note'}`; fieldMedia.append(issueText);
         if (issue.photoUrl) { const link = document.createElement('a'); link.href = issue.photoUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = `Issue ${index + 1} photo`; fieldMedia.append(link); }
       });
-      if (quote.customerSignature?.imageUrl) { const link = document.createElement('a'); link.href = quote.customerSignature.imageUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = 'View customer signature'; fieldMedia.append(link); }
+      if (quote.customerSignature?.imageUrl) {
+        const signatureLabel = document.createElement('p');
+        signatureLabel.textContent = `Customer signature — ${quote.customerSignature.name || 'Signed'}`;
+        const signatureImage = document.createElement('img');
+        signatureImage.className = 'quote-signature-preview';
+        signatureImage.src = quote.customerSignature.imageUrl;
+        signatureImage.alt = `Hand-drawn signature from ${quote.customerSignature.name || 'customer'}`;
+        signatureImage.loading = 'lazy';
+        fieldMedia.append(signatureLabel, signatureImage);
+      }
       const status = document.createElement('select');
       ['New', 'Contacted', 'Scheduled', 'Estimate ready', 'Estimate sent', 'Completed', 'Closed'].forEach((option) => {
         const choice = document.createElement('option');
@@ -586,11 +595,11 @@ function loadQuoteInbox() {
       });
       const requestPdf = document.createElement('button');
       requestPdf.type = 'button';
-      requestPdf.textContent = 'Download request + calculator PDF';
+      requestPdf.textContent = 'Download complete job record PDF';
       requestPdf.addEventListener('click', () => downloadQuotePdf('Customer quote request', quote));
       const estimatePdf = document.createElement('button');
       estimatePdf.type = 'button';
-      estimatePdf.textContent = 'Download final estimate PDF';
+      estimatePdf.textContent = 'Download estimate + job record PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
       actions.append(saveEstimate, saveTracking, saveSharedNotes, requestPdf, estimatePdf);
       const googleCalendarUrl = googleCalendarEventUrl(quote);
@@ -765,11 +774,13 @@ function downloadQuotePdf(title, quote) {
   const totalMinutes = Math.floor(Number(quote.timeElapsedSeconds || 0) / 60);
   const timeTracked = totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`;
   const photoLines = Array.isArray(quote.jobPhotos) && quote.jobPhotos.length
-    ? quote.jobPhotos.map((photo, index) => `${index + 1}. ${photo.type || 'Job'} photo: ${photo.url || 'No link'}`)
+    ? quote.jobPhotos.map((photo, index) => `${index + 1}. ${photo.type || 'Job'} photo saved ${photo.addedAt ? `on ${new Date(photo.addedAt).toLocaleString()}` : ''}`)
     : ['No job photos saved.'];
   const issueLines = Array.isArray(quote.issueReports) && quote.issueReports.length
-    ? quote.issueReports.map((issue, index) => `${index + 1}. ${issue.note || 'Issue note'}${issue.photoUrl ? ` — Photo: ${issue.photoUrl}` : ''}`)
+    ? quote.issueReports.map((issue, index) => `${index + 1}. ${issue.note || 'Issue note'}${issue.photoUrl ? ' — photo saved' : ''}${issue.reportedAt ? ` (${new Date(issue.reportedAt).toLocaleString()})` : ''}`)
     : ['No issue reports saved.'];
+  const checklist = quote.workerChecklist || {};
+  const signedAt = quote.customerSignature?.signedAt ? new Date(quote.customerSignature.signedAt).toLocaleString() : 'Not saved';
   const details = [
     title,
     `Reference: ${quote.reference || 'Not provided'}`,
@@ -780,7 +791,11 @@ function downloadQuotePdf(title, quote) {
     `Property: ${quote.propertyType || 'Not provided'}`,
     `Status: ${quote.status || 'New'}`,
     `Requested date: ${quote.bookingDate || 'Not requested'}`,
+    `Requested arrival: ${quote.bookingWindow || 'No preference'}`,
     `Address / area: ${quote.serviceArea || 'Not provided'}`,
+    `Frequency: ${quote.serviceFrequency || quote.frequency || 'Not provided'}`,
+    `Quote source: ${quote.source || 'Website request'}`,
+    `Created: ${quote.createdAt ? new Date(quote.createdAt).toLocaleString() : 'Not available'}`,
     `Calculator starting estimate: ${calculatorEstimate}`,
     '',
     'Customer request:',
@@ -792,9 +807,18 @@ function downloadQuotePdf(title, quote) {
     '',
     'Shared owner and team notes:',
     quote.sharedNotes || 'No shared notes saved.',
+    '',
+    'Owner tracking:',
+    `Last contact: ${quote.lastContact || 'No note saved'}`,
+    `Next follow-up: ${quote.nextFollowUp || 'Not scheduled'}`,
+    '',
+    'Team job record:',
     `Time tracked: ${timeTracked}`,
+    `Clocked in: ${quote.lastClockInAt ? new Date(quote.lastClockInAt).toLocaleString() : 'Not recorded'}`,
+    `Clocked out: ${quote.lastClockOutAt ? new Date(quote.lastClockOutAt).toLocaleString() : 'Not recorded'}`,
+    `Checklist — arrived: ${checklist.arrived ? 'Yes' : 'No'} · photos: ${checklist.beforeAfter ? 'Yes' : 'No'} · work checked: ${checklist.workFinished ? 'Yes' : 'No'}`,
     `Customer sign-off: ${quote.customerSignature?.name || 'Not saved'}`,
-    `Signature image: ${quote.customerSignature?.imageUrl || 'Not saved'}`,
+    `Signed on: ${signedAt}`,
     '',
     'Before / after job photos:',
     ...photoLines,
@@ -804,14 +828,21 @@ function downloadQuotePdf(title, quote) {
   ];
   const lines = details.flatMap((line) => String(line).match(/.{1,78}(?:\s|$)|\S+?(?:\s|$)/g) || ['']);
   const escapePdf = (text) => text.replace(/\\/g, '\\\\').replace(/[()]/g, '\\$&').replace(/[^\x20-\x7e]/g, '?');
-  const textStream = ['BT', '/F1 12 Tf', '50 760 Td', ...lines.map((line, index) => `${index ? '0 -16 Td' : ''} (${escapePdf(line.trim())}) Tj`), 'ET'].join('\n');
+  const pageSize = 43;
+  const pageLines = Array.from({ length: Math.max(1, Math.ceil(lines.length / pageSize)) }, (_, index) => lines.slice(index * pageSize, (index + 1) * pageSize));
+  const fontObject = 3 + pageLines.length * 2;
+  const pageObject = (index) => 3 + index * 2;
+  const contentObject = (index) => pageObject(index) + 1;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
-    `<< /Length ${textStream.length} >>\nstream\n${textStream}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+    `<< /Type /Pages /Kids [${pageLines.map((_, index) => `${pageObject(index)} 0 R`).join(' ')}] /Count ${pageLines.length} >>`
   ];
+  pageLines.forEach((page, index) => {
+    const textStream = ['BT', '/F1 10 Tf', '44 760 Td', ...page.map((line, lineIndex) => `${lineIndex ? '0 -16 Td' : ''} (${escapePdf(line.trim())}) Tj`), 'ET'].join('\n');
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObject} 0 R >> >> /Contents ${contentObject(index)} 0 R >>`);
+    objects.push(`<< /Length ${textStream.length} >>\nstream\n${textStream}\nendstream`);
+  });
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
   objects.forEach((object, index) => { offsets.push(pdf.length); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
