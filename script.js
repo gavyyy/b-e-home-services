@@ -1013,15 +1013,33 @@ quoteForm.addEventListener('submit', async (event) => {
   setFormField(quoteForm, '_template', 'table');
   setFormField(quoteForm, '_captcha', 'true');
   setFormField(quoteForm, '_next', nextPage.href);
-  quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
   trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
-  localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-  localStorage.setItem(quoteDuplicateKey, JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, time: Date.now() }));
   // Wait for the private record before navigating to the email service. Without
   // this wait, a browser redirect can cancel the save and make the dashboard
   // look as if a submitted quote disappeared.
   await saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
-  quoteForm.submit();
+  try {
+    // Use the same delivery route as the owner test button. This returns a
+    // clear success or failure response instead of navigating away mid-send.
+    const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(settings.quoteEmail)}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: new FormData(quoteForm)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.success === 'false') throw new Error(result.message || 'Email provider did not accept the request.');
+    localStorage.setItem(quoteRateLimitKey, String(Date.now()));
+    localStorage.setItem(quoteDuplicateKey, JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, time: Date.now() }));
+    quoteForm.reset();
+    quoteForm.dataset.openedAt = String(Date.now());
+    updateQuoteEstimate();
+    note.textContent = 'Thanks! Your quote request and email confirmation were sent. Please check your inbox.';
+    submitButton.textContent = 'Request my free quote';
+  } catch (error) {
+    note.textContent = 'Your quote could not be emailed yet. Please try again or call B & E directly.';
+    submitButton.disabled = false;
+    submitButton.textContent = 'Request my free quote';
+  }
 });
 
 restoreSavedValues();
