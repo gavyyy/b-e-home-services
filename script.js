@@ -488,6 +488,21 @@ function loadQuoteInbox() {
       info.textContent = `${quote.service || 'Service'} · ${quote.customerPhone || ''} · ${quote.customerEmail || ''}`;
       const details = document.createElement('p');
       details.textContent = quote.details || '';
+      const fieldRecord = document.createElement('p');
+      fieldRecord.className = 'quote-field-record';
+      const fieldMinutes = Math.floor(Number(quote.timeElapsedSeconds || 0) / 60);
+      const fieldTime = fieldMinutes >= 60 ? `${Math.floor(fieldMinutes / 60)}h ${fieldMinutes % 60}m` : `${fieldMinutes}m`;
+      fieldRecord.textContent = `Field record · Time: ${fieldTime} · Customer sign-off: ${quote.customerSignature?.name || 'Not saved'} · Photos: ${Array.isArray(quote.jobPhotos) ? quote.jobPhotos.length : 0} · Issues: ${Array.isArray(quote.issueReports) ? quote.issueReports.length : 0}`;
+      const fieldMedia = document.createElement('div');
+      fieldMedia.className = 'quote-field-media';
+      (quote.jobPhotos || []).forEach((photo, index) => {
+        if (!photo.url) return;
+        const link = document.createElement('a'); link.href = photo.url; link.target = '_blank'; link.rel = 'noopener'; link.textContent = `${photo.type || 'job'} photo ${index + 1}`; fieldMedia.append(link);
+      });
+      (quote.issueReports || []).forEach((issue, index) => {
+        const issueText = document.createElement('p'); issueText.textContent = `Issue ${index + 1}: ${issue.note || 'No note'}`; fieldMedia.append(issueText);
+        if (issue.photoUrl) { const link = document.createElement('a'); link.href = issue.photoUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = `Issue ${index + 1} photo`; fieldMedia.append(link); }
+      });
       const status = document.createElement('select');
       ['New', 'Contacted', 'Scheduled', 'Estimate ready', 'Estimate sent', 'Completed', 'Closed'].forEach((option) => {
         const choice = document.createElement('option');
@@ -604,7 +619,7 @@ function loadQuoteInbox() {
         }
       });
       actions.append(deleteQuote);
-      item.append(title, info, details, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, sharedNotes, actions);
+      item.append(title, info, details, fieldRecord, fieldMedia, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, sharedNotes, actions);
       return item;
     }));
   }, () => {
@@ -728,6 +743,14 @@ function renderOwnerDashboard(quotes) {
 
 function downloadQuotePdf(title, quote) {
   const calculatorEstimate = quote.calculatorEstimate || (quote.details || '').match(/Calculator starting estimate: (.*)/)?.[1] || 'Not available';
+  const totalMinutes = Math.floor(Number(quote.timeElapsedSeconds || 0) / 60);
+  const timeTracked = totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`;
+  const photoLines = Array.isArray(quote.jobPhotos) && quote.jobPhotos.length
+    ? quote.jobPhotos.map((photo, index) => `${index + 1}. ${photo.type || 'Job'} photo: ${photo.url || 'No link'}`)
+    : ['No job photos saved.'];
+  const issueLines = Array.isArray(quote.issueReports) && quote.issueReports.length
+    ? quote.issueReports.map((issue, index) => `${index + 1}. ${issue.note || 'Issue note'}${issue.photoUrl ? ` — Photo: ${issue.photoUrl}` : ''}`)
+    : ['No issue reports saved.'];
   const details = [
     title,
     `Reference: ${quote.reference || 'Not provided'}`,
@@ -746,7 +769,18 @@ function downloadQuotePdf(title, quote) {
     '',
     'Estimate:',
     quote.estimateAmount || 'Not set',
-    quote.estimateNotes || 'No estimate notes yet.'
+    quote.estimateNotes || 'No estimate notes yet.',
+    '',
+    'Shared owner and team notes:',
+    quote.sharedNotes || 'No shared notes saved.',
+    `Time tracked: ${timeTracked}`,
+    `Customer sign-off: ${quote.customerSignature?.name || 'Not saved'}`,
+    '',
+    'Before / after job photos:',
+    ...photoLines,
+    '',
+    'Team issue reports:',
+    ...issueLines
   ];
   const lines = details.flatMap((line) => String(line).match(/.{1,78}(?:\s|$)|\S+?(?:\s|$)/g) || ['']);
   const escapePdf = (text) => text.replace(/\\/g, '\\\\').replace(/[()]/g, '\\$&').replace(/[^\x20-\x7e]/g, '?');

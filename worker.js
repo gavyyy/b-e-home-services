@@ -1,10 +1,12 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js';
 
 const app = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(app);
 const database = getFirestore(app);
+const storage = getStorage(app);
 // Account name only. The worker PIN is checked by Firebase and is never
 // included in this page's source code.
 const workerAccount = 'brandon@behomeservices.art';
@@ -77,6 +79,21 @@ function appointmentReference() {
   return `TEAM-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
 
+function formatDuration(seconds = 0) {
+  const totalMinutes = Math.floor(Number(seconds || 0) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+async function uploadJobImage(jobDoc, file, type) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Choose a JPG, PNG, or WebP image under 10 MB.');
+  const safeName = file.name.replace(/[^a-z0-9._-]/gi, '-').slice(-80);
+  const target = ref(storage, `team-job-files/${jobDoc.id}/${type}-${Date.now()}-${safeName}`);
+  await uploadBytes(target, file);
+  return getDownloadURL(target);
+}
+
 async function loadJobs() {
   jobs.innerHTML = '<p>Loading jobs…</p>';
   try {
@@ -94,6 +111,57 @@ async function loadJobs() {
       const phone = document.createElement('p'); phone.textContent = `Phone: ${job.customerPhone || 'Not provided'}`;
       const email = document.createElement('p'); email.textContent = `Email: ${job.customerEmail || 'Not provided'}`;
       const notes = document.createElement('p'); notes.textContent = job.details || 'No job notes provided.';
+      const toolkit = document.createElement('details'); toolkit.className = 'worker-toolkit';
+      const toolkitTitle = document.createElement('summary'); toolkitTitle.textContent = 'Field-work tools'; toolkit.append(toolkitTitle);
+      const toolStatus = document.createElement('p'); toolStatus.className = 'worker-tool-status'; toolStatus.setAttribute('aria-live', 'polite');
+      const elapsed = Number(job.timeElapsedSeconds || 0);
+      const activeSeconds = job.timerStartedAt ? Math.max(0, Math.floor((Date.now() - Number(job.timerStartedAt)) / 1000)) : 0;
+      const timer = document.createElement('p'); timer.className = 'worker-timer'; timer.textContent = `Time on job: ${formatDuration(elapsed + activeSeconds)}${job.timerStartedAt ? ' · clocked in' : ''}`;
+      const timerActions = document.createElement('div'); timerActions.className = 'worker-tool-actions';
+      const clock = document.createElement('button'); clock.type = 'button'; clock.className = 'reset-button'; clock.textContent = job.timerStartedAt ? 'Clock out' : 'Clock in';
+      clock.addEventListener('click', async () => {
+        clock.disabled = true;
+        try {
+          if (job.timerStartedAt) {
+            const total = elapsed + Math.max(0, Math.floor((Date.now() - Number(job.timerStartedAt)) / 1000));
+            await updateDoc(jobDoc.ref, { timeElapsedSeconds: total, timerStartedAt: null, lastClockOutAt: Date.now() });
+            timer.textContent = `Time on job: ${formatDuration(total)}`; clock.textContent = 'Clock in'; toolStatus.textContent = 'Clocked out.';
+          } else {
+            await updateDoc(jobDoc.ref, { timerStartedAt: Date.now(), lastClockInAt: Date.now() });
+            timer.textContent = `Time on job: ${formatDuration(elapsed)} · clocked in`; clock.textContent = 'Clock out'; toolStatus.textContent = 'Clocked in.';
+          }
+        } catch { toolStatus.textContent = 'Time could not be saved.'; }
+        clock.disabled = false;
+      });
+      timerActions.append(clock); toolkit.append(timer, timerActions);
+      if (job.customerPhone) {
+        const arrivalRow = document.createElement('div'); arrivalRow.className = 'worker-arrival';
+        const arrival = document.createElement('input'); arrival.type = 'number'; arrival.min = '1'; arrival.max = '180'; arrival.value = '20'; arrival.inputMode = 'numeric'; arrival.setAttribute('aria-label', 'Minutes until arrival');
+        const onMyWay = document.createElement('a'); onMyWay.className = 'reset-button'; onMyWay.textContent = 'Text: on my way'; onMyWay.addEventListener('click', () => {
+          const minutes = Math.max(1, Math.min(180, Number(arrival.value) || 20));
+          const first = String(job.customerName || 'there').trim().split(/\s+/)[0] || 'there';
+          onMyWay.href = `sms:${String(job.customerPhone).replace(/[^+\d]/g, '')}?body=${encodeURIComponent(`Hi ${first}, this is B & E Home Services. We are on the way for your ${job.service || 'service'} and expect to arrive in about ${minutes} minutes. Thank you!`)}`;
+        });
+        onMyWay.href = `sms:${String(job.customerPhone).replace(/[^+\d]/g, '')}?body=${encodeURIComponent(`Hi ${String(job.customerName || 'there').trim().split(/\s+/)[0] || 'there'}, this is B & E Home Services. We are on the way for your ${job.service || 'service'} and expect to arrive in about 20 minutes. Thank you!`)}`;
+        arrivalRow.append(document.createTextNode('Arrival in'), arrival, document.createTextNode('minutes'), onMyWay); toolkit.append(arrivalRow);
+      }
+      const photoRow = document.createElement('div'); photoRow.className = 'worker-photo-tools';
+      const photoType = document.createElement('select'); ['Before photo', 'After photo'].forEach((label) => { const option = document.createElement('option'); option.value = label.split(' ')[0].toLowerCase(); option.textContent = label; photoType.append(option); });
+      const photoFile = document.createElement('input'); photoFile.type = 'file'; photoFile.accept = 'image/jpeg,image/png,image/webp'; photoFile.setAttribute('aria-label', 'Choose job photo');
+      const uploadPhoto = document.createElement('button'); uploadPhoto.type = 'button'; uploadPhoto.className = 'reset-button'; uploadPhoto.textContent = 'Upload photo';
+      uploadPhoto.addEventListener('click', async () => { uploadPhoto.disabled = true; try { const url = await uploadJobImage(jobDoc, photoFile.files[0], photoType.value); await updateDoc(jobDoc.ref, { jobPhotos: arrayUnion({ url, type: photoType.value, addedAt: Date.now() }) }); photoFile.value = ''; toolStatus.textContent = `${photoType.value === 'before' ? 'Before' : 'After'} photo saved for admin.`; } catch (error) { toolStatus.textContent = error.message || 'Photo could not be uploaded.'; } uploadPhoto.disabled = false; });
+      photoRow.append(photoType, photoFile, uploadPhoto); toolkit.append(photoRow);
+      const signatureRow = document.createElement('div'); signatureRow.className = 'worker-signature';
+      const signature = document.createElement('input'); signature.type = 'text'; signature.maxLength = 100; signature.placeholder = 'Customer signature / typed name'; signature.value = job.customerSignature?.name || ''; signature.setAttribute('aria-label', 'Customer signature or typed name');
+      const saveSignature = document.createElement('button'); saveSignature.type = 'button'; saveSignature.className = 'reset-button'; saveSignature.textContent = job.customerSignature?.name ? 'Update sign-off' : 'Save customer sign-off';
+      saveSignature.addEventListener('click', async () => { if (!signature.value.trim()) { toolStatus.textContent = 'Ask the customer to type their name first.'; return; } try { await updateDoc(jobDoc.ref, { customerSignature: { name: signature.value.trim(), signedAt: Date.now() } }); saveSignature.textContent = 'Sign-off saved'; toolStatus.textContent = 'Customer sign-off saved for admin.'; } catch { toolStatus.textContent = 'Customer sign-off could not be saved.'; } });
+      signatureRow.append(signature, saveSignature); toolkit.append(signatureRow);
+      const issueRow = document.createElement('div'); issueRow.className = 'worker-issue';
+      const issue = document.createElement('textarea'); issue.rows = 2; issue.maxLength = 600; issue.placeholder = 'Report an issue for the owner…';
+      const issueFile = document.createElement('input'); issueFile.type = 'file'; issueFile.accept = 'image/jpeg,image/png,image/webp'; issueFile.setAttribute('aria-label', 'Optional issue photo');
+      const reportIssue = document.createElement('button'); reportIssue.type = 'button'; reportIssue.className = 'reset-button'; reportIssue.textContent = 'Report issue';
+      reportIssue.addEventListener('click', async () => { if (!issue.value.trim()) { toolStatus.textContent = 'Describe the issue before sending it.'; return; } reportIssue.disabled = true; try { const photoUrl = issueFile.files[0] ? await uploadJobImage(jobDoc, issueFile.files[0], 'issue') : ''; await updateDoc(jobDoc.ref, { issueReports: arrayUnion({ note: issue.value.trim(), photoUrl, reportedAt: Date.now(), reportedBy: 'Team' }) }); issue.value = ''; issueFile.value = ''; toolStatus.textContent = 'Issue report sent to admin.'; } catch (error) { toolStatus.textContent = error.message || 'Issue could not be saved.'; } reportIssue.disabled = false; });
+      issueRow.append(issue, issueFile, reportIssue); toolkit.append(issueRow, toolStatus);
       const sharedNotesLabel = document.createElement('label'); sharedNotesLabel.className = 'worker-shared-notes'; sharedNotesLabel.textContent = 'Shared team & owner notes';
       const sharedNotes = document.createElement('textarea'); sharedNotes.rows = 3; sharedNotes.maxLength = 1000; sharedNotes.placeholder = 'Add a note for the owner or team…'; sharedNotes.value = job.sharedNotes || ''; sharedNotesLabel.append(sharedNotes);
       const checklist = document.createElement('fieldset'); checklist.className = 'worker-checklist';
@@ -124,7 +192,7 @@ async function loadJobs() {
       }
       const complete = document.createElement('button'); complete.className = 'button worker-complete'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Job completed ✓' : 'Job complete'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { if (!window.confirm(`Mark ${job.customerName || 'this customer'}’s job complete?`)) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Job completed ✓'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
-      actions.append(complete); card.append(title, details, location, phone, email, notes, sharedNotesLabel, checklist, actions); return card;
+      actions.append(complete); card.append(title, details, location, phone, email, notes, toolkit, sharedNotesLabel, checklist, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }
 }
