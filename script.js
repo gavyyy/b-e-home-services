@@ -41,8 +41,12 @@ window.addEventListener('load', () => {
 });
 
 function valuesFrom(form) {
-  const values = Object.fromEntries(new FormData(form).entries());
-  form.querySelectorAll('input[type="checkbox"]').forEach((field) => { values[field.name] = field.checked; });
+  const formData = new FormData(form);
+  const values = Object.fromEntries(formData.entries());
+  form.querySelectorAll('input[type="checkbox"]').forEach((field) => {
+    if (field.name !== 'services') values[field.name] = field.checked;
+  });
+  if (form === quoteForm) values.service = formData.getAll('services').map((value) => String(value).trim()).filter(Boolean).join(', ');
   return values;
 }
 
@@ -158,7 +162,7 @@ function updateQuoteEstimate() {
 }
 
 function getQuoteEstimate() {
-  const service = quoteForm.elements.namedItem('service').value;
+  const service = valuesFrom(quoteForm).service.split(', ')[0] || '';
   const size = quoteForm.elements.namedItem('projectSize').value;
   if (!service || !size) {
     return { label: 'Choose a service and size', size, service };
@@ -301,7 +305,7 @@ function renderCustomerSummary(records) {
   ['input', 'change'].forEach((eventName) => input.addEventListener(eventName, () => { if (trackedQuotes.length) loadQuoteInbox(); }));
 });
 
-quoteForm.elements.namedItem('service').addEventListener('change', updateQuoteEstimate);
+quoteForm.querySelectorAll('input[name="services"]').forEach((field) => field.addEventListener('change', updateQuoteEstimate));
 quoteForm.elements.namedItem('projectSize').addEventListener('change', updateQuoteEstimate);
 
 const accessibilityToggle = document.querySelector('#accessibilityToggle');
@@ -982,6 +986,11 @@ quoteForm.addEventListener('submit', async (event) => {
   const cooldownMs = Number(settings.quoteCooldownMinutes || 1) * 60 * 1000;
   if (quote.companyWebsite || secondsOpen < minimumSeconds || linkCount > maximumLinks) {
     note.textContent = 'We could not submit that request. Please review the form and try again.';
+    return;
+  }
+  if (!quote.service) {
+    note.textContent = 'Please select at least one service before sending your quote request.';
+    quoteForm.querySelector('.service-picker').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedPhone.length < 10 || spamTerms.test(textForScreening)) {
