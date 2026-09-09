@@ -335,7 +335,7 @@ const quoteLanguageLabel = document.querySelector('#quoteLanguageLabel');
 let quoteLanguage = 'en';
 const labelText = new Map();
 const translatedLabels = {
-  customerName: 'Nombre completo', customerPhone: 'Número de teléfono', customerEmail: 'Correo electrónico', service: 'Servicio que necesita', propertyType: 'Tipo de propiedad (opcional)', projectSize: 'Tamaño del proyecto para estimado', contactMethod: 'Forma preferida de contacto', preferredTime: 'Mejor día / hora', serviceFrequency: 'Frecuencia del servicio', referralSource: 'Código o nombre de referencia (opcional)', bookingDate: 'Fecha preferida para el servicio (opcional)', bookingWindow: 'Horario preferido de llegada', serviceArea: 'Dirección o vecindario del servicio (opcional)', details: 'Cuéntenos sobre el trabajo', attachment: 'Fotos del trabajo (opcional — máximo 10 MB)'
+  customerName: 'Nombre completo', customerPhone: 'Número de teléfono', customerEmail: 'Correo electrónico', service: 'Servicio que necesita', propertyType: 'Tipo de propiedad (opcional)', projectSize: 'Tamaño del proyecto para estimado', contactMethod: 'Forma preferida de contacto', preferredTime: 'Mejor día / hora', serviceFrequency: 'Frecuencia del servicio', referralSource: 'Código o nombre de referencia (opcional)', bookingDate: 'Fecha preferida para el servicio', bookingWindow: 'Horario preferido de llegada', serviceArea: 'Dirección del servicio', details: 'Cuéntenos sobre el trabajo', attachment: 'Fotos del trabajo (opcional — máximo 10 MB)'
 };
 const translatedOptions = { service: ['Seleccione un servicio', 'Cuidado de césped y paisajismo', 'Recorte de setos', 'Poda de árboles', 'Mantillo', 'Lavado a presión', 'Limpieza residencial', 'Limpieza comercial', 'Limpieza profunda', 'Limpieza básica del hogar', 'Otra cosa'], propertyType: ['Seleccione uno', 'Casa', 'Apartamento / condominio', 'Negocio', 'Alquiler / mudanza', 'Otro'], projectSize: ['Seleccione un tamaño', 'Pequeño', 'Mediano', 'Grande'], contactMethod: ['Llamada', 'Texto', 'Correo electrónico'], serviceFrequency: ['Servicio único', 'Semanal', 'Cada dos semanas', 'Mensual'], bookingWindow: ['Sin preferencia', 'Mañana', 'Tarde', 'Noche'] };
 function setFirstLabelText(fieldName, text) {
@@ -970,6 +970,11 @@ quoteForm.addEventListener('submit', async (event) => {
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedPhone.length < 10 || spamTerms.test(textForScreening)) {
     note.textContent = 'We could not submit that request. Please use a valid email and phone number, then review the form and try again.';
+    return;
+  }
+  if (!quote.bookingDate || String(quote.serviceArea || '').trim().length < 5) {
+    quoteForm.querySelector('.quote-details').open = true;
+    note.textContent = 'Please enter your service address and preferred service date before sending your quote request.';
     return;
   }
   if (recentQuote && recentQuote.email === normalizedEmail && recentQuote.phone === normalizedPhone && Date.now() - recentQuote.time < 24 * 60 * 60 * 1000) {
