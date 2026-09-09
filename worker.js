@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 
 const app = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(app);
@@ -16,6 +16,8 @@ const signOutButton = document.querySelector('#workerSignOut');
 const workspace = document.querySelector('#workerWorkspace');
 const summary = document.querySelector('#workerSummary');
 const refreshButton = document.querySelector('#refreshJobs');
+const appointmentForm = document.querySelector('#teamAppointmentForm');
+const appointmentStatus = document.querySelector('#teamAppointmentStatus');
 let lockTimer;
 let reviewUrl = 'https://g.page/r/CRU8GnuRuE1GECE/review';
 
@@ -68,6 +70,12 @@ document.querySelectorAll('[data-key]').forEach((button) => button.addEventListe
 }));
 document.querySelector('#clearWorkerCode').addEventListener('click', () => { codeInput.value = ''; });
 document.querySelector('#deleteWorkerCode').addEventListener('click', () => { codeInput.value = codeInput.value.slice(0, -1); });
+
+document.querySelector('#teamAppointmentDate').min = new Date().toISOString().slice(0, 10);
+
+function appointmentReference() {
+  return `TEAM-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
 
 async function loadJobs() {
   jobs.innerHTML = '<p>Loading jobs…</p>';
@@ -125,6 +133,39 @@ form.addEventListener('submit', async (event) => {
     refreshWorkerLock();
   } catch {
     status.textContent = 'That code did not work. Please try again.';
+  }
+});
+appointmentForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!auth.currentUser) return;
+  const appointment = Object.fromEntries(new FormData(appointmentForm).entries());
+  const button = appointmentForm.querySelector('button[type="submit"]');
+  const phone = String(appointment.customerPhone || '').replace(/\D/g, '');
+  if (phone.length < 10) { appointmentStatus.textContent = 'Enter a valid client phone number.'; return; }
+  button.disabled = true;
+  appointmentStatus.textContent = 'Saving appointment…';
+  try {
+    await addDoc(collection(database, 'quoteRequests'), {
+      reference: appointmentReference(),
+      customerName: String(appointment.customerName || '').trim(),
+      customerPhone: String(appointment.customerPhone || '').trim(),
+      customerEmail: '',
+      service: appointment.service,
+      serviceArea: String(appointment.serviceArea || '').trim(),
+      bookingDate: appointment.bookingDate,
+      bookingWindow: appointment.bookingWindow || '',
+      details: String(appointment.details || '').trim(),
+      status: 'Scheduled',
+      source: 'Team appointment',
+      createdAt: Date.now()
+    });
+    appointmentForm.reset();
+    appointmentStatus.textContent = 'Appointment saved. Use “Add to calendar” on the new job card if needed.';
+    await loadJobs();
+  } catch {
+    appointmentStatus.textContent = 'The appointment could not be saved. Ask the owner to enable team appointment access.';
+  } finally {
+    button.disabled = false;
   }
 });
 refreshButton.addEventListener('click', () => { loadJobs(); refreshWorkerLock(); });

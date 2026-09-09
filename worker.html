@@ -37,6 +37,17 @@
       <section id="workerWorkspace" class="worker-workspace" hidden>
         <div class="worker-toolbar"><div><p class="eyebrow">Today’s workload</p><p id="workerSummary" class="worker-summary">Loading jobs…</p></div><button id="refreshJobs" class="reset-button" type="button">Refresh jobs</button></div>
         <div class="worker-tip"><strong>Quick team tools:</strong> call or text the customer, open the location in Maps, then mark the job complete when you are finished.</div>
+        <details class="worker-appointment">
+          <summary>Add a client appointment</summary>
+          <form id="teamAppointmentForm">
+            <div class="form-row"><label>Client name<input required name="customerName" maxlength="80" autocomplete="name" /></label><label>Phone number<input required name="customerPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" /></label></div>
+            <label>Service<select required name="service"><option value="" selected disabled>Select a service</option><option>Lawn & landscaping</option><option>Hedge trimming</option><option>Tree trimming</option><option>Mulching</option><option>Pressure washing</option><option>Residential cleaning</option><option>Commercial cleaning</option><option>Deep cleaning</option><option>Basic home cleaning</option><option>Other service</option></select></label>
+            <label>Service address<input required name="serviceArea" maxlength="160" autocomplete="street-address" placeholder="123 Main St., Columbia, SC" /></label>
+            <div class="form-row"><label>Appointment date<input id="teamAppointmentDate" required name="bookingDate" type="date" /></label><label>Arrival window<select name="bookingWindow"><option value="">No preference</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></label></div>
+            <label>Notes <small>(optional)</small><textarea name="details" rows="3" maxlength="600" placeholder="Anything the team should know"></textarea></label>
+            <button class="button" type="submit">Save appointment <span>→</span></button><p id="teamAppointmentStatus" class="portal-status" aria-live="polite"></p>
+          </form>
+        </details>
       </section>
       <section id="workerJobs" class="worker-jobs"><p>Enter your code to view B &amp; E jobs.</p></section>
       <button id="workerSignOut" class="reset-button" hidden>Lock job board</button>
