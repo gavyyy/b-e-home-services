@@ -985,6 +985,7 @@ quoteForm.addEventListener('submit', async (event) => {
     return;
   }
   const submitButton = quoteForm.querySelector('button');
+  const originalSubmitButtonText = submitButton.textContent;
   const reference = quoteReference();
   const calculator = getQuoteEstimate();
   submitButton.disabled = true;
@@ -1034,11 +1035,11 @@ quoteForm.addEventListener('submit', async (event) => {
     quoteForm.dataset.openedAt = String(Date.now());
     updateQuoteEstimate();
     note.textContent = 'Thanks! Your quote request and email confirmation were sent. Please check your inbox.';
-    submitButton.textContent = 'Request my free quote';
+    submitButton.textContent = originalSubmitButtonText;
   } catch (error) {
     note.textContent = 'Your quote could not be emailed yet. Please try again or call B & E directly.';
     submitButton.disabled = false;
-    submitButton.textContent = 'Request my free quote';
+    submitButton.textContent = originalSubmitButtonText;
   }
 });
 
