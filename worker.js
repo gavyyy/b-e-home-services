@@ -135,8 +135,9 @@ async function loadJobs() {
     const result = await getDocs(query(collection(database, 'quoteRequests'), orderBy('createdAt', 'desc')));
     if (result.empty) { summary.textContent = 'No jobs are waiting right now.'; jobs.innerHTML = '<p>No jobs are waiting right now.</p>'; return; }
     const completed = result.docs.filter((item) => item.data().status === 'Completed').length;
+    const newJobs = result.docs.filter((item) => (item.data().status || 'New') === 'New').length;
     const openCount = result.docs.length - completed;
-    summary.textContent = `${openCount} open job${openCount === 1 ? '' : 's'} · ${completed} completed`;
+    summary.textContent = `${newJobs} new · ${openCount} open job${openCount === 1 ? '' : 's'} · ${completed} completed`;
     jobs.replaceChildren(...result.docs.map((jobDoc) => {
       const job = jobDoc.data();
       const card = document.createElement('article'); card.className = 'worker-job';
@@ -235,6 +236,13 @@ async function loadJobs() {
       }
       const complete = document.createElement('button'); complete.className = 'button worker-complete'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Job completed ✓' : 'Job complete'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { if (!window.confirm(`Mark ${job.customerName || 'this customer'}’s job complete?`)) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Job completed ✓'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
+      const activity = Array.isArray(job.activityLog) ? job.activityLog.slice(-4).reverse() : [];
+      if (activity.length) {
+        const activityPanel = document.createElement('details'); activityPanel.className = 'worker-toolkit';
+        const activityTitle = document.createElement('summary'); activityTitle.textContent = 'Recent activity'; activityPanel.append(activityTitle);
+        activity.forEach((entry) => { const item = document.createElement('p'); item.textContent = `${new Date(entry.at || Date.now()).toLocaleString()} · ${entry.by || 'Team'}: ${entry.label || 'Updated job'}`; activityPanel.append(item); });
+        card.append(activityPanel);
+      }
       actions.append(complete); card.append(title, details, location, phone, email, notes, toolkit, sharedNotesLabel, checklist, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }

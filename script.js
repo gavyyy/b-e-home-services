@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, setDoc, updateDoc, where } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js';
 
 const firebaseApp = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
@@ -36,6 +36,10 @@ let adminLockTimer;
 let savedValues = {};
 let quoteTrackingUnsubscribe;
 quoteForm.dataset.openedAt = String(Date.now());
+
+function activityEntry(label, by = 'Owner') {
+  return { label, by, at: Date.now() };
+}
 
 // Always begin a fresh visit at the top instead of restoring a previous scroll position.
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -481,6 +485,9 @@ function loadQuoteInbox() {
   if (quoteTrackingUnsubscribe) quoteTrackingUnsubscribe();
   quoteTrackingUnsubscribe = onSnapshot(query(quoteRequests, orderBy('createdAt', 'desc'), limit(50)), (results) => {
     trackedQuotes = results.docs;
+    const newJobAlert = document.querySelector('#adminNewJobAlert');
+    const newJobs = results.docs.filter((quoteDoc) => (quoteDoc.data().status || 'New') === 'New').length;
+    if (newJobAlert) newJobAlert.textContent = newJobs ? `${newJobs} new request${newJobs === 1 ? '' : 's'} waiting` : 'No new requests';
     renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
     renderCustomerSummary(results.docs);
     renderJobPdfArchive(results.docs.map((quoteDoc) => quoteDoc.data()));
@@ -521,6 +528,18 @@ function loadQuoteInbox() {
         const issueText = document.createElement('p'); issueText.textContent = `Issue ${index + 1}: ${issue.note || 'No note'}`; fieldMedia.append(issueText);
         if (issue.photoUrl) { const link = document.createElement('a'); link.href = issue.photoUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = `Issue ${index + 1} photo`; fieldMedia.append(link); }
       });
+      const activity = Array.isArray(quote.activityLog) ? quote.activityLog.slice(-6).reverse() : [];
+      if (activity.length) {
+        const activityTitle = document.createElement('p');
+        activityTitle.textContent = 'Recent job activity';
+        fieldMedia.append(activityTitle);
+        activity.forEach((entry) => {
+          const item = document.createElement('p');
+          const timestamp = entry.at ? new Date(entry.at).toLocaleString() : 'Recently';
+          item.textContent = `${timestamp} — ${entry.by || 'Team'}: ${entry.label || 'Updated job record'}`;
+          fieldMedia.append(item);
+        });
+      }
       if (quote.customerSignature?.imageUrl) {
         const signatureLabel = document.createElement('p');
         signatureLabel.textContent = `Customer signature — ${quote.customerSignature.name || 'Signed'}`;
@@ -540,7 +559,7 @@ function loadQuoteInbox() {
         status.append(choice);
       });
       status.addEventListener('change', async () => {
-        try { await updateDoc(quoteDoc.ref, { status: status.value }); } catch (error) { status.value = quote.status || 'New'; }
+        try { await updateDoc(quoteDoc.ref, { status: status.value, activityLog: arrayUnion(activityEntry(`Changed status to ${status.value}`)) }); } catch (error) { status.value = quote.status || 'New'; }
       });
       const estimateAmount = document.createElement('input');
       estimateAmount.placeholder = 'Estimate amount, such as $150';
@@ -568,7 +587,7 @@ function loadQuoteInbox() {
       saveEstimate.textContent = 'Save estimate';
       saveEstimate.addEventListener('click', async () => {
         try {
-          await updateDoc(quoteDoc.ref, { estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() });
+          await updateDoc(quoteDoc.ref, { estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim(), activityLog: arrayUnion(activityEntry('Saved estimate details')) });
           saveEstimate.textContent = 'Saved';
           setTimeout(() => { saveEstimate.textContent = 'Save estimate'; }, 1500);
         } catch (error) { saveEstimate.textContent = 'Could not save'; }
@@ -578,7 +597,7 @@ function loadQuoteInbox() {
       saveTracking.textContent = 'Save customer tracking';
       saveTracking.addEventListener('click', async () => {
         try {
-          await updateDoc(quoteDoc.ref, { lastContact: lastContact.value.trim(), nextFollowUp: nextFollowUp.value || '' });
+          await updateDoc(quoteDoc.ref, { lastContact: lastContact.value.trim(), nextFollowUp: nextFollowUp.value || '', activityLog: arrayUnion(activityEntry('Updated customer follow-up')) });
           saveTracking.textContent = 'Tracking saved';
           setTimeout(() => { saveTracking.textContent = 'Save customer tracking'; }, 1500);
         } catch (error) { saveTracking.textContent = 'Could not save'; }
@@ -588,7 +607,7 @@ function loadQuoteInbox() {
       saveSharedNotes.textContent = 'Save shared notes';
       saveSharedNotes.addEventListener('click', async () => {
         try {
-          await updateDoc(quoteDoc.ref, { sharedNotes: sharedNotes.value.trim(), sharedNotesUpdatedAt: Date.now(), sharedNotesUpdatedBy: 'Owner' });
+          await updateDoc(quoteDoc.ref, { sharedNotes: sharedNotes.value.trim(), sharedNotesUpdatedAt: Date.now(), sharedNotesUpdatedBy: 'Owner', activityLog: arrayUnion(activityEntry('Saved shared notes')) });
           saveSharedNotes.textContent = 'Notes saved';
           setTimeout(() => { saveSharedNotes.textContent = 'Save shared notes'; }, 1500);
         } catch (error) { saveSharedNotes.textContent = 'Could not save'; }
@@ -854,6 +873,29 @@ function downloadQuotePdf(title, quote) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
+
+document.querySelector('#exportJobBackup')?.addEventListener('click', async () => {
+  if (!auth.currentUser || auth.currentUser.email !== ownerEmail) return;
+  const status = document.querySelector('#backupStatus');
+  status.textContent = 'Preparing complete backup…';
+  try {
+    const results = await getDocs(query(quoteRequests, orderBy('createdAt', 'desc')));
+    const backup = {
+      business: 'B & E Home Services',
+      exportedAt: new Date().toISOString(),
+      includes: 'Quotes, estimates, customer tracking, owner and team notes, activity, photos, issue reports, signatures, checklists, and time records.',
+      jobs: results.docs.map((quoteDoc) => ({ id: quoteDoc.id, ...quoteDoc.data() }))
+    };
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    link.download = `b-e-home-services-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    status.textContent = `${backup.jobs.length} job records downloaded. Save this file somewhere safe.`;
+  } catch (error) {
+    status.textContent = 'Backup could not be prepared. Refresh the quote inbox and try again.';
+  }
+});
 
 document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbox);
 
