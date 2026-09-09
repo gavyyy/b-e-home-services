@@ -94,6 +94,8 @@ async function loadJobs() {
       const phone = document.createElement('p'); phone.textContent = `Phone: ${job.customerPhone || 'Not provided'}`;
       const email = document.createElement('p'); email.textContent = `Email: ${job.customerEmail || 'Not provided'}`;
       const notes = document.createElement('p'); notes.textContent = job.details || 'No job notes provided.';
+      const sharedNotesLabel = document.createElement('label'); sharedNotesLabel.className = 'worker-shared-notes'; sharedNotesLabel.textContent = 'Shared team & owner notes';
+      const sharedNotes = document.createElement('textarea'); sharedNotes.rows = 3; sharedNotes.maxLength = 1000; sharedNotes.placeholder = 'Add a note for the owner or team…'; sharedNotes.value = job.sharedNotes || ''; sharedNotesLabel.append(sharedNotes);
       const checklist = document.createElement('fieldset'); checklist.className = 'worker-checklist';
       const checklistTitle = document.createElement('legend'); checklistTitle.textContent = 'Job checklist'; checklist.append(checklistTitle);
       const checklistValues = job.workerChecklist || {};
@@ -101,6 +103,15 @@ async function loadJobs() {
         const row = document.createElement('label'); const check = document.createElement('input'); check.type = 'checkbox'; check.checked = Boolean(checklistValues[key]); check.addEventListener('change', async () => { try { checklistValues[key] = check.checked; await updateDoc(jobDoc.ref, { workerChecklist: checklistValues }); } catch { check.checked = !check.checked; status.textContent = 'Checklist could not be saved. Please try again.'; } }); row.append(check, document.createTextNode(label)); checklist.append(row);
       });
       const actions = document.createElement('div'); actions.className = 'worker-actions';
+      const saveSharedNotes = document.createElement('button'); saveSharedNotes.className = 'reset-button'; saveSharedNotes.type = 'button'; saveSharedNotes.textContent = 'Save shared notes';
+      saveSharedNotes.addEventListener('click', async () => {
+        try {
+          await updateDoc(jobDoc.ref, { sharedNotes: sharedNotes.value.trim(), sharedNotesUpdatedAt: Date.now(), sharedNotesUpdatedBy: 'Team' });
+          saveSharedNotes.textContent = 'Notes saved';
+          setTimeout(() => { saveSharedNotes.textContent = 'Save shared notes'; }, 1500);
+        } catch { saveSharedNotes.textContent = 'Could not save'; }
+      });
+      actions.append(saveSharedNotes);
       if (job.serviceArea) { const maps = document.createElement('a'); maps.className = 'reset-button'; maps.target = '_blank'; maps.rel = 'noopener'; maps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.serviceArea)}`; maps.textContent = 'Open in maps'; actions.append(maps); }
       const calendar = calendarLink(job);
       if (calendar) { const addToCalendar = document.createElement('a'); addToCalendar.className = 'reset-button'; addToCalendar.target = '_blank'; addToCalendar.rel = 'noopener'; addToCalendar.href = calendar; addToCalendar.textContent = 'Add to calendar'; actions.append(addToCalendar); }
@@ -113,7 +124,7 @@ async function loadJobs() {
       }
       const complete = document.createElement('button'); complete.className = 'button worker-complete'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Job completed ✓' : 'Job complete'; complete.disabled = job.status === 'Completed';
       complete.addEventListener('click', async () => { if (!window.confirm(`Mark ${job.customerName || 'this customer'}’s job complete?`)) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Job completed ✓'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
-      actions.append(complete); card.append(title, details, location, phone, email, notes, checklist, actions); return card;
+      actions.append(complete); card.append(title, details, location, phone, email, notes, sharedNotesLabel, checklist, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }
 }

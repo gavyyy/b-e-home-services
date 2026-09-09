@@ -508,6 +508,12 @@ function loadQuoteInbox() {
       const nextFollowUp = document.createElement('input');
       nextFollowUp.type = 'date';
       nextFollowUp.value = quote.nextFollowUp || '';
+      const sharedNotes = document.createElement('textarea');
+      sharedNotes.rows = 3;
+      sharedNotes.maxLength = 1000;
+      sharedNotes.setAttribute('aria-label', 'Shared team and owner notes');
+      sharedNotes.placeholder = 'Shared team & owner notes';
+      sharedNotes.value = quote.sharedNotes || '';
       const actions = document.createElement('div');
       actions.className = 'quote-actions';
       const saveEstimate = document.createElement('button');
@@ -530,6 +536,16 @@ function loadQuoteInbox() {
           setTimeout(() => { saveTracking.textContent = 'Save customer tracking'; }, 1500);
         } catch (error) { saveTracking.textContent = 'Could not save'; }
       });
+      const saveSharedNotes = document.createElement('button');
+      saveSharedNotes.type = 'button';
+      saveSharedNotes.textContent = 'Save shared notes';
+      saveSharedNotes.addEventListener('click', async () => {
+        try {
+          await updateDoc(quoteDoc.ref, { sharedNotes: sharedNotes.value.trim(), sharedNotesUpdatedAt: Date.now(), sharedNotesUpdatedBy: 'Owner' });
+          saveSharedNotes.textContent = 'Notes saved';
+          setTimeout(() => { saveSharedNotes.textContent = 'Save shared notes'; }, 1500);
+        } catch (error) { saveSharedNotes.textContent = 'Could not save'; }
+      });
       const requestPdf = document.createElement('button');
       requestPdf.type = 'button';
       requestPdf.textContent = 'Download request + calculator PDF';
@@ -538,7 +554,7 @@ function loadQuoteInbox() {
       estimatePdf.type = 'button';
       estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
-      actions.append(saveEstimate, saveTracking, requestPdf, estimatePdf);
+      actions.append(saveEstimate, saveTracking, saveSharedNotes, requestPdf, estimatePdf);
       const googleCalendarUrl = googleCalendarEventUrl(quote);
       if (googleCalendarUrl) {
         const addToCalendar = document.createElement('a');
@@ -584,7 +600,7 @@ function loadQuoteInbox() {
         }
       });
       actions.append(deleteQuote);
-      item.append(title, info, details, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, actions);
+      item.append(title, info, details, status, estimateAmount, estimateNotes, lastContact, nextFollowUp, sharedNotes, actions);
       return item;
     }));
   }, () => {
