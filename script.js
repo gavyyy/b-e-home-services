@@ -829,35 +829,33 @@ document.querySelector('#refreshQuotes').addEventListener('click', loadQuoteInbo
 document.querySelector('#sendTestQuote').addEventListener('click', async () => {
   if (!auth.currentUser || auth.currentUser.email !== ownerEmail) return;
   const status = document.querySelector('#testQuoteStatus');
-  const settings = valuesFrom(adminForm);
-  const recipient = String(settings.quoteEmail || '').trim();
-  if (!/^\S+@\S+\.\S+$/.test(recipient)) {
-    status.textContent = 'Add a valid quote request email, then save your page changes first.';
-    return;
-  }
+  const recipient = 'gavindun2025@gmail.com';
   if (!window.confirm(`Send a test quote email to ${recipient}?`)) return;
-  const reference = `TEST-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}`;
-  const formData = new FormData();
-  formData.set('customerName', 'B & E website test');
-  formData.set('customerEmail', recipient);
-  formData.set('customerPhone', 'Test only');
-  formData.set('service', 'Website email delivery test');
-  formData.set('quote_reference', reference);
-  formData.set('calculator_starting_estimate', 'Test only — not a customer quote');
-  formData.set('message', 'This is a test quote generated from the protected B & E owner controls. If you received this message, quote email delivery is working.');
-  formData.set('_subject', `B & E TEST quote delivery — ${reference}`);
-  formData.set('_template', 'table');
+  const reference = `TEST-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   status.textContent = 'Sending test quote email…';
   try {
-    const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(recipient)}`, {
+    const response = await fetch(quoteEmailEndpoint, {
       method: 'POST',
-      headers: { Accept: 'application/json' },
-      body: formData
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'B & E website test',
+        email: recipient,
+        phone: '252-266-2160',
+        address: 'B & E Home Services — test only',
+        services: ['Website email delivery test'],
+        estimate: 'Test only — not a customer quote',
+        requestedDate: new Date().toISOString().slice(0, 10),
+        requestedWindow: 'Test only',
+        propertyType: 'Test only',
+        frequency: 'Test only',
+        notes: 'This is a protected owner-control email test. No customer request was created.',
+        reference
+      })
     });
-    if (!response.ok) throw new Error('Email provider did not accept the test.');
-    status.textContent = 'Test sent. Check the quote inbox, including spam, in a few minutes.';
+    if (!response.ok) throw new Error('Secure email service did not accept the test.');
+    status.textContent = 'Test sent to Gavin. Brandon will receive the owner copy too. Check spam or junk if needed.';
   } catch (error) {
-    status.textContent = 'The test could not be sent yet. Make sure FormSubmit has been activated for this inbox, then try again.';
+    status.textContent = 'The test could not be sent. Check that the secure quote-email service is online, then try again.';
   }
 });
 
