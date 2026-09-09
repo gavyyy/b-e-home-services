@@ -20,6 +20,7 @@ const loginForm = document.querySelector('#loginForm');
 const adminSection = document.querySelector('#admin');
 const quoteRateLimitKey = 'be-home-services-last-quote-request';
 const quoteDuplicateKey = 'be-home-services-recent-quote';
+const quoteEmailEndpoint = 'https://jolly-sunset-84d6.quotesend.workers.dev/';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
 const jobPdfArchive = document.querySelector('#jobPdfArchive');
@@ -1057,38 +1058,44 @@ quoteForm.addEventListener('submit', async (event) => {
   submitButton.disabled = true;
   submitButton.textContent = 'Sending…';
   note.textContent = 'Sending your quote request and confirmation email…';
-  const nextPage = new URL(window.location.href);
-  nextPage.searchParams.set('quote', 'sent');
-  nextPage.hash = 'contact';
-  setFormField(quoteForm, 'email', quote.customerEmail);
-  setFormField(quoteForm, 'phone', quote.customerPhone || 'Not provided');
-  setFormField(quoteForm, 'property_type', quote.propertyType);
-  setFormField(quoteForm, 'preferred_contact', quote.contactMethod);
-  setFormField(quoteForm, 'best_time', quote.preferredTime || 'Not provided');
-  setFormField(quoteForm, 'service_address_or_neighborhood', quote.serviceArea || 'Not provided');
-  setFormField(quoteForm, 'requested_service_date', quote.bookingDate || 'Not requested');
-  setFormField(quoteForm, 'requested_arrival_window', quote.bookingWindow || 'No preference');
-  setFormField(quoteForm, 'service_frequency', quote.serviceFrequency || 'One-time service');
-  setFormField(quoteForm, 'referral_source', quote.referralSource || 'Not provided');
-  setFormField(quoteForm, 'message', quote.details || 'Not provided');
-  setFormField(quoteForm, 'quote_reference', reference);
-  setFormField(quoteForm, 'calculator_starting_estimate', calculator.label);
-  setFormField(quoteForm, 'add_to_google_calendar', googleCalendarEventUrl({ ...quote, reference }) || 'No requested date was provided');
-  setFormField(quoteForm, '_subject', `New B & E quote request ${reference} — ${quote.service}`);
-  setFormField(quoteForm, '_replyto', quote.customerEmail);
-  setFormField(quoteForm, '_autoresponse', `Thank you for contacting B & E Home Services. We received your quote request. Your reference number is ${reference}. Your pre-quote estimate is ${calculator.label}. This is not a final price or final quote; B & E will review the job details and contact you to confirm the final price before work begins.\n\nIMPORTANT TERMS NOTICE: By submitting this request, you confirmed that you read and agreed to B & E Home Services’ Terms of Use, including the Property Condition, Damage, and Customer Responsibility section: https://behomeservices.art/terms.html\n\nYou are responsible for telling B & E about existing damage, fragile or loose items, hidden conditions, utilities, hazards, pets, and special care instructions, and for securing valuables and property that could be affected by the requested work. To the fullest extent permitted by law, B & E Home Services is not responsible for loss, damage, delays, or costs tied to pre-existing or hidden conditions, unsecured property, ordinary risks of the requested work, weather, third parties, or conditions outside our control. B & E works carefully to avoid damage and will review concerns reported as soon as possible. This notice does not waive any rights or responsibilities that cannot legally be waived.`);
-  setFormField(quoteForm, '_template', 'table');
-  setFormField(quoteForm, '_captcha', 'true');
-  setFormField(quoteForm, '_next', nextPage.href);
-  trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
-  quoteForm.action = `https://formsubmit.co/${encodeURIComponent(settings.quoteEmail)}`;
-  localStorage.setItem(quoteRateLimitKey, String(Date.now()));
-  localStorage.setItem(quoteDuplicateKey, JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, time: Date.now() }));
-  // Wait for the private record before navigating to the email service. Without
-  // this wait, a browser redirect can cancel the save and make the dashboard
-  // look as if a submitted quote disappeared.
-  await saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
-  quoteForm.submit();
+  try {
+    // Save the dashboard record first, then send owner and customer email copies
+    // through the protected server endpoint. No mail-service key is exposed here.
+    await saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
+    const response = await fetch(quoteEmailEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: quote.customerName,
+        email: quote.customerEmail,
+        phone: quote.customerPhone,
+        address: quote.serviceArea,
+        services: quote.service.split(', ').filter(Boolean),
+        estimate: calculator.label,
+        requestedDate: quote.bookingDate,
+        requestedWindow: quote.bookingWindow || 'No preference',
+        propertyType: quote.propertyType,
+        frequency: quote.serviceFrequency || 'One-time service',
+        notes: quote.details || 'None provided',
+        reference
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) throw new Error(result.error || 'Email delivery could not be started.');
+
+    trackAnalytics('generate_lead', { service_type: quote.service, property_type: quote.propertyType, contact_method: quote.contactMethod });
+    localStorage.setItem(quoteRateLimitKey, String(Date.now()));
+    localStorage.setItem(quoteDuplicateKey, JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, time: Date.now() }));
+    quoteForm.reset();
+    updateQuoteEstimate();
+    note.textContent = `Thanks! Your request was sent. A confirmation was emailed to you. Your reference is ${result.reference || reference}.`;
+  } catch (error) {
+    console.error(error);
+    note.textContent = 'Your quote was saved, but we could not send the email copies yet. Please call 252-266-2160 so B & E can confirm your request.';
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Send quote request';
+  }
 });
 
 restoreSavedValues();
