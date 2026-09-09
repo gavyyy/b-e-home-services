@@ -23,6 +23,9 @@ const quoteDuplicateKey = 'be-home-services-recent-quote';
 const quoteRequests = collection(database, 'quoteRequests');
 const quoteList = document.querySelector('#quoteList');
 const jobPdfArchive = document.querySelector('#jobPdfArchive');
+const appointmentCalendar = document.querySelector('#appointmentCalendar');
+const calendarMonthTitle = document.querySelector('#calendarMonthTitle');
+let appointmentCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 const customerLoginForm = document.querySelector('#customerLoginForm');
 const customerPortalStatus = document.querySelector('#customerPortalStatus');
 const customerQuoteList = document.querySelector('#customerQuoteList');
@@ -459,6 +462,7 @@ function loadQuoteInbox() {
     renderOwnerDashboard(results.docs.map((quoteDoc) => quoteDoc.data()));
     renderCustomerSummary(results.docs);
     renderJobPdfArchive(results.docs.map((quoteDoc) => quoteDoc.data()));
+    renderAppointmentCalendar(results.docs.map((quoteDoc) => quoteDoc.data()));
     if (results.empty) {
       quoteList.innerHTML = '<p class="quote-empty">No tracked quote requests yet.</p>';
       return;
@@ -535,6 +539,16 @@ function loadQuoteInbox() {
       estimatePdf.textContent = 'Download final estimate PDF';
       estimatePdf.addEventListener('click', () => downloadQuotePdf('B & E Home Services estimate', { ...quote, estimateAmount: estimateAmount.value.trim(), estimateNotes: estimateNotes.value.trim() }));
       actions.append(saveEstimate, saveTracking, requestPdf, estimatePdf);
+      const googleCalendarUrl = googleCalendarEventUrl(quote);
+      if (googleCalendarUrl) {
+        const addToCalendar = document.createElement('a');
+        addToCalendar.className = 'reset-button';
+        addToCalendar.href = googleCalendarUrl;
+        addToCalendar.target = '_blank';
+        addToCalendar.rel = 'noopener';
+        addToCalendar.textContent = 'Add to Google Calendar';
+        actions.append(addToCalendar);
+      }
       const phoneDigits = String(quote.customerPhone || '').replace(/\D/g, '');
       if (phoneDigits.length >= 7) {
         const customerFirstName = String(quote.customerName || 'there').trim().split(/\s+/)[0] || 'there';
@@ -595,6 +609,81 @@ function renderJobPdfArchive(quotes) {
     return button;
   }));
 }
+
+function dateFromBookingDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+}
+
+function googleCalendarEventUrl(quote) {
+  const start = dateFromBookingDate(quote.bookingDate);
+  if (!start) return '';
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const compactDate = (date) => `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  const parameters = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `B & E request — ${quote.customerName || 'Customer'} · ${quote.service || 'Service'}`,
+    dates: `${compactDate(start)}/${compactDate(end)}`,
+    details: `Requested arrival: ${quote.bookingWindow || 'No preference'}\nPhone: ${quote.customerPhone || 'Not provided'}\nEmail: ${quote.customerEmail || 'Not provided'}\nQuote reference: ${quote.reference || 'Not provided'}\nNotes: ${quote.details || 'None'}`,
+    location: quote.serviceArea || ''
+  });
+  return `https://calendar.google.com/calendar/render?${parameters.toString()}`;
+}
+
+function renderAppointmentCalendar(quotes) {
+  const year = appointmentCalendarMonth.getFullYear();
+  const month = appointmentCalendarMonth.getMonth();
+  calendarMonthTitle.textContent = appointmentCalendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const datedQuotes = quotes.filter((quote) => {
+    const date = dateFromBookingDate(quote.bookingDate);
+    return date && date.getFullYear() === year && date.getMonth() === month;
+  });
+  const byDay = new Map();
+  datedQuotes.forEach((quote) => {
+    const day = dateFromBookingDate(quote.bookingDate).getDate();
+    byDay.set(day, [...(byDay.get(day) || []), quote]);
+  });
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const nodes = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((name) => {
+    const heading = document.createElement('span');
+    heading.className = 'calendar-weekday';
+    heading.textContent = name;
+    return heading;
+  });
+  for (let i = 0; i < firstDay; i += 1) {
+    const blank = document.createElement('div');
+    blank.className = 'calendar-day';
+    nodes.push(blank);
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day';
+    const number = document.createElement('span');
+    number.className = 'calendar-day-number';
+    number.textContent = String(day);
+    cell.append(number);
+    (byDay.get(day) || []).forEach((quote) => {
+      const job = document.createElement('span');
+      job.className = `calendar-job${quote.status === 'Scheduled' ? ' is-scheduled' : ''}`;
+      job.textContent = `${quote.status === 'Scheduled' ? 'Scheduled' : 'Requested'} · ${quote.customerName || quote.service || 'Job'}`;
+      job.title = `${quote.service || 'Service'} — ${quote.bookingWindow || 'No preference'}`;
+      cell.append(job);
+    });
+    nodes.push(cell);
+  }
+  appointmentCalendar.replaceChildren(...nodes);
+}
+
+document.querySelector('#previousCalendarMonth').addEventListener('click', () => {
+  appointmentCalendarMonth = new Date(appointmentCalendarMonth.getFullYear(), appointmentCalendarMonth.getMonth() - 1, 1);
+  renderAppointmentCalendar(trackedQuotes.map((quoteDoc) => quoteDoc.data()));
+});
+document.querySelector('#nextCalendarMonth').addEventListener('click', () => {
+  appointmentCalendarMonth = new Date(appointmentCalendarMonth.getFullYear(), appointmentCalendarMonth.getMonth() + 1, 1);
+  renderAppointmentCalendar(trackedQuotes.map((quoteDoc) => quoteDoc.data()));
+});
 
 function renderOwnerDashboard(quotes) {
   const dashboard = document.querySelector('#dashboardStats');
