@@ -1,12 +1,10 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
 import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
-import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js';
 
 const app = initializeApp({ apiKey: 'AIzaSyCV3E1Yx8QRCtk67FxLE9j56UJtAOZv5hI', authDomain: 'b-and-e-homeservices.firebaseapp.com', projectId: 'b-and-e-homeservices', storageBucket: 'b-and-e-homeservices.firebasestorage.app', messagingSenderId: '684500409058', appId: '1:684500409058:web:87ea0ba53810de570b5cbb' });
 const auth = getAuth(app);
 const database = getFirestore(app);
-const storage = getStorage(app);
 // Account name only. The worker PIN is checked by Firebase and is never
 // included in this page's source code.
 const workerAccount = 'brandon@behomeservices.art';
@@ -86,16 +84,49 @@ function formatDuration(seconds = 0) {
   return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
-async function uploadJobImage(jobDoc, file, type) {
-  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Choose a JPG, PNG, or WebP image under 10 MB.');
-  const safeName = String(file.name || `${type}.png`).replace(/[^a-z0-9._-]/gi, '-').slice(-80);
-  const target = ref(storage, `team-job-files/${jobDoc.id}/${type}-${Date.now()}-${safeName}`);
-  await uploadBytes(target, file);
-  return getDownloadURL(target);
+function fileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Photo could not be read.'));
+    reader.readAsDataURL(file);
+  });
 }
 
-function signatureBlob(canvas) {
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Signature could not be prepared.')), 'image/png'));
+function imageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Photo could not be prepared.'));
+    image.src = dataUrl;
+  });
+}
+
+function canvasAsDataUrl(canvas, quality) {
+  return new Promise((resolve, reject) => canvas.toBlob(async (blob) => {
+    if (!blob) return reject(new Error('Photo could not be prepared.'));
+    try { resolve(await fileAsDataUrl(blob)); } catch (error) { reject(error); }
+  }, 'image/jpeg', quality));
+}
+
+// Firebase Storage is not enabled on this project. Small, compressed field
+// photos are stored directly on the protected job record instead.
+async function saveJobImage(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Choose a JPG, PNG, or WebP image under 10 MB.');
+  const image = await imageFromDataUrl(await fileAsDataUrl(file));
+  let width = Math.min(image.naturalWidth || image.width, 1000);
+  let height = Math.round(width * (image.naturalHeight || image.height) / (image.naturalWidth || image.width));
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    const dataUrl = await canvasAsDataUrl(canvas, 0.72);
+    if (dataUrl.length <= 180000) return dataUrl;
+    width = Math.round(width * 0.72);
+    height = Math.round(height * 0.72);
+  }
+  throw new Error('That photo is still too large. Please choose a smaller photo.');
 }
 
 async function loadJobs() {
@@ -153,7 +184,7 @@ async function loadJobs() {
       const photoType = document.createElement('select'); ['Before photo', 'After photo'].forEach((label) => { const option = document.createElement('option'); option.value = label.split(' ')[0].toLowerCase(); option.textContent = label; photoType.append(option); });
       const photoFile = document.createElement('input'); photoFile.type = 'file'; photoFile.accept = 'image/jpeg,image/png,image/webp'; photoFile.setAttribute('aria-label', 'Choose job photo');
       const uploadPhoto = document.createElement('button'); uploadPhoto.type = 'button'; uploadPhoto.className = 'reset-button'; uploadPhoto.textContent = 'Upload photo';
-      uploadPhoto.addEventListener('click', async () => { uploadPhoto.disabled = true; try { const url = await uploadJobImage(jobDoc, photoFile.files[0], photoType.value); await updateDoc(jobDoc.ref, { jobPhotos: arrayUnion({ url, type: photoType.value, addedAt: Date.now() }) }); photoFile.value = ''; toolStatus.textContent = `${photoType.value === 'before' ? 'Before' : 'After'} photo saved for admin.`; } catch (error) { toolStatus.textContent = error.message || 'Photo could not be uploaded.'; } uploadPhoto.disabled = false; });
+      uploadPhoto.addEventListener('click', async () => { uploadPhoto.disabled = true; try { const url = await saveJobImage(photoFile.files[0]); await updateDoc(jobDoc.ref, { jobPhotos: arrayUnion({ url, type: photoType.value, addedAt: Date.now() }) }); photoFile.value = ''; toolStatus.textContent = `${photoType.value === 'before' ? 'Before' : 'After'} photo saved for admin.`; } catch (error) { toolStatus.textContent = error.message || 'Photo could not be uploaded.'; } uploadPhoto.disabled = false; });
       photoRow.append(photoType, photoFile, uploadPhoto); toolkit.append(photoRow);
       const signatureRow = document.createElement('div'); signatureRow.className = 'worker-signature';
       const signature = document.createElement('input'); signature.type = 'text'; signature.maxLength = 100; signature.placeholder = 'Customer name'; signature.value = job.customerSignature?.name || ''; signature.setAttribute('aria-label', 'Customer name for signature');
@@ -166,13 +197,13 @@ async function loadJobs() {
       ['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => signaturePad.addEventListener(eventName, () => { signing = false; }));
       const clearSignature = document.createElement('button'); clearSignature.type = 'button'; clearSignature.className = 'reset-button'; clearSignature.textContent = 'Clear signature'; clearSignature.addEventListener('click', () => { signatureContext.fillStyle = '#fffdf8'; signatureContext.fillRect(0, 0, signaturePad.width, signaturePad.height); hasSignatureInk = false; });
       const saveSignature = document.createElement('button'); saveSignature.type = 'button'; saveSignature.className = 'reset-button'; saveSignature.textContent = job.customerSignature?.name ? 'Update sign-off' : 'Save customer sign-off';
-      saveSignature.addEventListener('click', async () => { if (!signature.value.trim() || !hasSignatureInk) { toolStatus.textContent = 'Enter the customer name and have them sign in the box.'; return; } saveSignature.disabled = true; try { const imageUrl = await uploadJobImage(jobDoc, await signatureBlob(signaturePad), 'customer-signature'); await updateDoc(jobDoc.ref, { customerSignature: { name: signature.value.trim(), imageUrl, signedAt: Date.now() } }); saveSignature.textContent = 'Sign-off saved'; toolStatus.textContent = 'Customer signature saved for admin and the PDF.'; } catch (error) { toolStatus.textContent = error.message || 'Customer signature could not be saved.'; } saveSignature.disabled = false; });
+      saveSignature.addEventListener('click', async () => { if (!signature.value.trim() || !hasSignatureInk) { toolStatus.textContent = 'Enter the customer name and have them sign in the box.'; return; } saveSignature.disabled = true; try { const imageUrl = signaturePad.toDataURL('image/png'); await updateDoc(jobDoc.ref, { customerSignature: { name: signature.value.trim(), imageUrl, signedAt: Date.now() } }); saveSignature.textContent = 'Sign-off saved'; toolStatus.textContent = 'Customer signature saved for admin and the PDF.'; } catch (error) { toolStatus.textContent = error.message || 'Customer signature could not be saved.'; } saveSignature.disabled = false; });
       signatureRow.append(signature, signaturePad, clearSignature, saveSignature); toolkit.append(signatureRow);
       const issueRow = document.createElement('div'); issueRow.className = 'worker-issue';
       const issue = document.createElement('textarea'); issue.rows = 2; issue.maxLength = 600; issue.placeholder = 'Report an issue for the owner…';
       const issueFile = document.createElement('input'); issueFile.type = 'file'; issueFile.accept = 'image/jpeg,image/png,image/webp'; issueFile.setAttribute('aria-label', 'Optional issue photo');
       const reportIssue = document.createElement('button'); reportIssue.type = 'button'; reportIssue.className = 'reset-button'; reportIssue.textContent = 'Report issue';
-      reportIssue.addEventListener('click', async () => { if (!issue.value.trim()) { toolStatus.textContent = 'Describe the issue before sending it.'; return; } reportIssue.disabled = true; try { const photoUrl = issueFile.files[0] ? await uploadJobImage(jobDoc, issueFile.files[0], 'issue') : ''; await updateDoc(jobDoc.ref, { issueReports: arrayUnion({ note: issue.value.trim(), photoUrl, reportedAt: Date.now(), reportedBy: 'Team' }) }); issue.value = ''; issueFile.value = ''; toolStatus.textContent = 'Issue report sent to admin.'; } catch (error) { toolStatus.textContent = error.message || 'Issue could not be saved.'; } reportIssue.disabled = false; });
+      reportIssue.addEventListener('click', async () => { if (!issue.value.trim()) { toolStatus.textContent = 'Describe the issue before sending it.'; return; } reportIssue.disabled = true; try { const photoUrl = issueFile.files[0] ? await saveJobImage(issueFile.files[0]) : ''; await updateDoc(jobDoc.ref, { issueReports: arrayUnion({ note: issue.value.trim(), photoUrl, reportedAt: Date.now(), reportedBy: 'Team' }) }); issue.value = ''; issueFile.value = ''; toolStatus.textContent = 'Issue report sent to admin.'; } catch (error) { toolStatus.textContent = error.message || 'Issue could not be saved.'; } reportIssue.disabled = false; });
       issueRow.append(issue, issueFile, reportIssue); toolkit.append(issueRow, toolStatus);
       const sharedNotesLabel = document.createElement('label'); sharedNotesLabel.className = 'worker-shared-notes'; sharedNotesLabel.textContent = 'Shared team & owner notes';
       const sharedNotes = document.createElement('textarea'); sharedNotes.rows = 3; sharedNotes.maxLength = 1000; sharedNotes.placeholder = 'Add a note for the owner or team…'; sharedNotes.value = job.sharedNotes || ''; sharedNotesLabel.append(sharedNotes);
