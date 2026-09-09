@@ -19,6 +19,27 @@ const refreshButton = document.querySelector('#refreshJobs');
 let lockTimer;
 let reviewUrl = 'https://g.page/r/CRU8GnuRuE1GECE/review';
 
+function calendarLink(job) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(job.bookingDate || '')) return '';
+  const startTime = ({ Morning: '090000', Afternoon: '130000', Evening: '170000' })[job.bookingWindow] || '090000';
+  const endTime = ({ Morning: '100000', Afternoon: '140000', Evening: '180000' })[job.bookingWindow] || '100000';
+  const day = job.bookingDate.replaceAll('-', '');
+  const details = [
+    `Reference: ${job.reference || 'Not provided'}`,
+    `Phone: ${job.customerPhone || 'Not provided'}`,
+    `Email: ${job.customerEmail || 'Not provided'}`,
+    job.details || ''
+  ].filter(Boolean).join('\n');
+  const parameters = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `B & E — ${job.service || 'Service'} — ${job.customerName || 'Customer'}`,
+    dates: `${day}T${startTime}/${day}T${endTime}`,
+    details,
+    location: job.serviceArea || ''
+  });
+  return `https://calendar.google.com/calendar/render?${parameters.toString()}`;
+}
+
 async function loadReviewLink() {
   try {
     const settings = await getDoc(doc(database, 'siteSettings', 'main'));
@@ -73,6 +94,8 @@ async function loadJobs() {
       });
       const actions = document.createElement('div'); actions.className = 'worker-actions';
       if (job.serviceArea) { const maps = document.createElement('a'); maps.className = 'reset-button'; maps.target = '_blank'; maps.rel = 'noopener'; maps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.serviceArea)}`; maps.textContent = 'Open in maps'; actions.append(maps); }
+      const calendar = calendarLink(job);
+      if (calendar) { const addToCalendar = document.createElement('a'); addToCalendar.className = 'reset-button'; addToCalendar.target = '_blank'; addToCalendar.rel = 'noopener'; addToCalendar.href = calendar; addToCalendar.textContent = 'Add to calendar'; actions.append(addToCalendar); }
       if (job.customerPhone) {
         const phoneNumber = String(job.customerPhone).replace(/[^+\d]/g, '');
         const customerFirstName = String(job.customerName || 'there').trim().split(/\s+/)[0] || 'there';
@@ -80,8 +103,8 @@ async function loadJobs() {
         const text = document.createElement('a'); text.className = 'reset-button'; text.href = `sms:${phoneNumber}`; text.textContent = 'Text customer'; actions.append(text);
         const thankYou = document.createElement('a'); thankYou.className = 'reset-button'; thankYou.href = `sms:${phoneNumber}?body=${encodeURIComponent(`Hi ${customerFirstName}, thank you for choosing B & E Home Services for your ${job.service || 'service'}. We truly appreciate your business! If you were happy with our work, would you kindly leave us a Google review? ${reviewUrl}`)}`; thankYou.textContent = 'Thank customer + review link'; actions.append(thankYou);
       }
-      const complete = document.createElement('button'); complete.className = 'button button-small'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Completed' : 'Mark completed'; complete.disabled = job.status === 'Completed';
-      complete.addEventListener('click', async () => { if (!window.confirm('Mark this job as completed?')) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Completed'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
+      const complete = document.createElement('button'); complete.className = 'button worker-complete'; complete.type = 'button'; complete.textContent = job.status === 'Completed' ? 'Job completed ✓' : 'Job complete'; complete.disabled = job.status === 'Completed';
+      complete.addEventListener('click', async () => { if (!window.confirm(`Mark ${job.customerName || 'this customer'}’s job complete?`)) return; try { await updateDoc(jobDoc.ref, { status: 'Completed', completedAt: new Date().toISOString() }); complete.textContent = 'Job completed ✓'; complete.disabled = true; details.textContent = `Status: Completed · Requested: ${job.bookingDate || 'Date to be confirmed'} ${job.bookingWindow || ''}`; status.textContent = 'Job marked completed.'; await loadJobs(); } catch { status.textContent = 'We could not update that job. Please try again.'; } });
       actions.append(complete); card.append(title, details, location, phone, email, notes, checklist, actions); return card;
     }));
   } catch { jobs.innerHTML = '<p>Job access is not ready yet. Please ask the owner to check worker access.</p>'; }
