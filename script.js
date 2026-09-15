@@ -180,20 +180,33 @@ function renderReviews(values) {
 function updateQuoteEstimate() {
   const estimate = getQuoteEstimate();
   document.querySelector('#quoteEstimate').textContent = estimate.label;
+  const promoStatus = document.querySelector('#promoStatus');
+  if (promoStatus) promoStatus.textContent = estimate.promoMessage || 'Enter a valid promo code to see any available savings.';
 }
 
 function getQuoteEstimate() {
   const selectedServices = valuesFrom(quoteForm).service.split(', ').filter(Boolean);
   const size = quoteForm.elements.namedItem('projectSize').value;
+  const enteredPromo = String(quoteForm.elements.namedItem('promoCode')?.value || '').trim().toUpperCase();
+  const activePromos = ['', '2', '3'].map((suffix) => ({
+    code: String(adminForm.elements.namedItem(`promoCode${suffix}`)?.value || '').trim().toUpperCase(),
+    discount: Math.max(0, Number(adminForm.elements.namedItem(`promoDiscountAmount${suffix}`)?.value) || 0)
+  })).filter((promo) => promo.code && promo.discount > 0);
   if (!selectedServices.length || !size) {
-    return { label: 'Choose service(s) and size', size, service: selectedServices.join(', ') };
+    return { label: 'Choose service(s) and size', size, service: selectedServices.join(', '), promoMessage: enteredPromo ? 'Choose service(s) and size to check this promo code.' : '' };
   }
   const outdoorServices = ['Lawn & landscaping', 'Hedge trimming', 'Tree trimming', 'Mulching', 'Pressure washing'];
   const amounts = selectedServices.map((service) => Number(adminForm.elements.namedItem(`calc${outdoorServices.includes(service) ? 'Outdoor' : 'Cleaning'}${size}`).value) || 0);
   const total = amounts.reduce((sum, amount) => sum + amount, 0);
   const everyServicePriced = amounts.every((amount) => amount > 0);
-  const label = !total ? 'Pre-quote: final pricing needed' : everyServicePriced ? `Pre-quote starting at $${total.toLocaleString()}` : `Pre-quote from $${total.toLocaleString()} + final pricing needed`;
-  return { label, size, service: selectedServices.join(', ') };
+  const matchedPromo = activePromos.find((promo) => promo.code === enteredPromo);
+  const promoApplied = Boolean(matchedPromo && total > 0);
+  const discount = promoApplied ? Math.min(matchedPromo.discount, total) : 0;
+  const discountedTotal = Math.max(0, total - discount);
+  let label = !total ? 'Pre-quote: final pricing needed' : everyServicePriced ? `Pre-quote starting at $${total.toLocaleString()}` : `Pre-quote from $${total.toLocaleString()} + final pricing needed`;
+  if (promoApplied) label = `Pre-quote from $${discountedTotal.toLocaleString()} — ${enteredPromo} saves $${discount.toLocaleString()}`;
+  const promoMessage = promoApplied ? `Promo ${enteredPromo} applied: $${discount.toLocaleString()} off this pre-quote. Final price is confirmed by B & E.` : enteredPromo ? 'That promo code is not active. B & E will review your request and confirm the final price.' : '';
+  return { label, size, service: selectedServices.join(', '), promoCode: promoApplied ? enteredPromo : '', discount, promoMessage };
 }
 
 function applySavedValues(saved) {
@@ -329,6 +342,7 @@ function renderCustomerSummary(records) {
 
 quoteForm.querySelectorAll('input[name="services"]').forEach((field) => field.addEventListener('change', updateQuoteEstimate));
 quoteForm.elements.namedItem('projectSize').addEventListener('change', updateQuoteEstimate);
+quoteForm.elements.namedItem('promoCode').addEventListener('input', updateQuoteEstimate);
 
 const accessibilityToggle = document.querySelector('#accessibilityToggle');
 const accessibilityPanel = document.querySelector('#accessibilityPanel');
@@ -361,7 +375,7 @@ const quoteLanguageLabel = document.querySelector('#quoteLanguageLabel');
 let quoteLanguage = 'en';
 const labelText = new Map();
 const translatedLabels = {
-  customerName: 'Nombre completo', customerPhone: 'Número de teléfono', customerEmail: 'Correo electrónico', service: 'Servicio que necesita', propertyType: 'Tipo de propiedad (opcional)', projectSize: 'Tamaño del proyecto para estimado', contactMethod: 'Forma preferida de contacto', preferredTime: 'Mejor día / hora', serviceFrequency: 'Frecuencia del servicio', referralSource: 'Código o nombre de referencia (opcional)', bookingDate: 'Fecha preferida para el servicio', bookingWindow: 'Horario preferido de llegada', serviceArea: 'Dirección del servicio', details: 'Cuéntenos sobre el trabajo', attachment: 'Fotos del trabajo (opcional — máximo 10 MB)'
+  customerName: 'Nombre completo', customerPhone: 'Número de teléfono', customerEmail: 'Correo electrónico', service: 'Servicio que necesita', propertyType: 'Tipo de propiedad (opcional)', projectSize: 'Tamaño del proyecto para estimado', promoCode: 'Código promocional (opcional)', contactMethod: 'Forma preferida de contacto', preferredTime: 'Mejor día / hora', serviceFrequency: 'Frecuencia del servicio', referralSource: 'Código o nombre de referencia (opcional)', bookingDate: 'Fecha preferida para el servicio', bookingWindow: 'Horario preferido de llegada', serviceArea: 'Dirección del servicio', details: 'Cuéntenos sobre el trabajo', attachment: 'Fotos del trabajo (opcional — máximo 10 MB)'
 };
 const translatedOptions = { service: ['Seleccione un servicio', 'Cuidado de césped y paisajismo', 'Recorte de setos', 'Poda de árboles', 'Mantillo', 'Lavado a presión', 'Limpieza residencial', 'Limpieza comercial', 'Limpieza profunda', 'Limpieza básica del hogar', 'Otra cosa'], propertyType: ['Seleccione uno', 'Casa', 'Apartamento / condominio', 'Negocio', 'Alquiler / mudanza', 'Otro'], projectSize: ['Seleccione un tamaño', 'Pequeño', 'Mediano', 'Grande'], contactMethod: ['Llamada', 'Texto', 'Correo electrónico'], serviceFrequency: ['Servicio único', 'Semanal', 'Cada dos semanas', 'Mensual'], bookingWindow: ['Sin preferencia', 'Mañana', 'Tarde', 'Noche'] };
 function setFirstLabelText(fieldName, text) {
@@ -1148,7 +1162,8 @@ quoteForm.addEventListener('submit', async (event) => {
   try {
     // Save the dashboard record first, then send owner and customer email copies
     // through the protected server endpoint. No mail-service key is exposed here.
-    await saveQuoteForOwner({ ...quote, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
+    const promoNote = quote.promoCode ? `\nPromo code entered: ${quote.promoCode.trim().toUpperCase()}${calculator.promoCode ? ` ($${calculator.discount.toLocaleString()} pre-quote discount applied)` : ' (not active)'}` : '';
+    await saveQuoteForOwner({ ...quote, details: `${quote.details || ''}${promoNote}`, projectSize: calculator.size, calculatorEstimate: calculator.label }, reference);
     const response = await fetch(quoteEmailEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1163,7 +1178,7 @@ quoteForm.addEventListener('submit', async (event) => {
         requestedWindow: quote.bookingWindow || 'No preference',
         propertyType: quote.propertyType,
         frequency: quote.serviceFrequency || 'One-time service',
-        notes: quote.details || 'None provided',
+        notes: `${quote.details || 'None provided'}${promoNote}`,
         reference
       })
     });
